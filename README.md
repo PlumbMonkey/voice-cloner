@@ -1,10 +1,31 @@
-# 🎤 Voice Cloner - AI Agent for SO-VITS-SVC
+# 🎤 Voice Cloner - Desktop Application
 
-An intelligent automation tool that guides you through the complete process of cloning your voice and creating a personalized AI singing voice model for FL Studio.
+Professional desktop application for voice cloning and synthesis using advanced AI models.
+
+## 🚀 Quick Start
+
+### Installation (Choose One)
+
+**Option 1: Python Launcher (Easiest)**
+```powershell
+python launcher.py
+```
+
+**Option 2: Windows Installer**
+```powershell
+python installer.py
+# Or double-click INSTALL.bat
+```
+
+**Option 3: Manual Setup**
+```powershell
+pip install -r requirements.txt
+python src/desktop_app.py
+```
 
 ## Overview
 
-Voice Cloner streamlines the complex process of:
+Voice Cloner Pro streamlines the complete process of:
 - Setting up a Python environment with GPU support
 - Preparing your vocal recordings
 - Training a custom voice model
