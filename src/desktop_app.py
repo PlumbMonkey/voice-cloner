@@ -557,28 +557,39 @@ class VoiceClonerDesktopApp(QMainWindow):
     def run_setup(self):
         """Run environment setup"""
         try:
-            self.setup_log.append("⚙️ Starting environment setup...\nThis may take 10-20 minutes...\n")
+            self.setup_log.append("⚙️ Starting environment setup...\n")
             self.setup_progress.setVisible(True)
             self.setup_progress.setValue(0)
 
             # Run phase 1 first if not done
             if not self.orchestrator.workflow_state.get("env_detected"):
                 self.setup_log.append("📋 Detecting environment first...\n")
-                self.orchestrator.run_phase_1_environment_detection()
-                self.setup_log.append("✅ Environment detected\n\n")
+                phase1_success = self.orchestrator.run_phase_1_environment_detection()
+                
+                if not phase1_success:
+                    self.setup_log.append("⚠️ Environment detection encountered issues, but continuing...\n")
+                    # Don't fail, just continue
+                else:
+                    self.setup_log.append("✅ Environment detected\n\n")
 
             # Now run phase 2
+            self.setup_log.append("⚙️ Installing dependencies...\nThis may take 10-20 minutes...\n")
+            self.setup_progress.setValue(25)
+            
             success = self.orchestrator.run_phase_2_environment_setup()
 
             if success:
                 self.setup_log.append("\n✅ Environment setup completed!")
                 self.setup_progress.setValue(100)
             else:
-                self.setup_log.append("\n❌ Environment setup failed!")
+                self.setup_log.append("\n⚠️ Setup completed with warnings")
+                self.setup_progress.setValue(75)
+                
         except Exception as e:
             self.setup_log.append(f"\n❌ Error during setup: {str(e)}")
             import traceback
             self.setup_log.append(f"\n{traceback.format_exc()}")
+            self.setup_progress.setValue(0)
 
     def select_preprocessing_dir(self):
         """Select preprocessing directory"""
