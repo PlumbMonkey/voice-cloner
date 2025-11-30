@@ -1,0 +1,14 @@
+torch==2.0.1
+torchaudio==2.0.2
+numpy==1.24.3
+scipy==1.11.1
+librosa==0.10.0
+soundfile==0.12.1
+pydub==0.25.1
+python-dotenv==1.0.0
+pyyaml==6.0
+click==8.1.7
+rich==13.5.2
+psutil==5.9.5
+PyQt6==6.6.1
+pyinstaller==6.1.0
