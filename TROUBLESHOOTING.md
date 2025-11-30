@@ -502,6 +502,85 @@ DEVICE=cpu  # If GPU not available
    - Search SO-VITS-SVC documentation
    - Check PyTorch forums
 
+## PyQt6 DLL Loading Error (Windows)
+
+### Symptom
+```
+ImportError: DLL load failed while importing QtCore: The specified procedure could not be found.
+```
+
+This is a Windows-specific issue when running the desktop application.
+
+### Solutions (Try in Order)
+
+#### 1. Install Visual C++ Runtime (MOST EFFECTIVE)
+The most common cause - Windows is missing required C++ libraries.
+
+1. Download Microsoft Visual C++ Redistributable 2022:
+   - Go to: https://support.microsoft.com/en-us/help/2977003
+   - Select **x64** (64-bit) version
+   - Download and run the installer
+   - Restart your computer
+   - Try Voice Cloner Pro again
+
+#### 2. Clean PyQt6 Reinstall
+```powershell
+pip uninstall PyQt6 PyQt6-Qt6 PyQt6-sip -y
+pip install PyQt6==6.4.2 --no-cache-dir
+```
+
+Test: `python -c "from PyQt6.QtWidgets import QApplication; print('OK')"`
+
+#### 3. Create Virtual Environment
+Create an isolated Python environment:
+
+```powershell
+# Create venv
+python -m venv voice_cloner_env
+
+# Activate (Windows)
+.\voice_cloner_env\Scripts\Activate.ps1
+
+# Install
+pip install PyQt6
+python launcher.py
+```
+
+#### 4. Use Standard Python Distribution
+The Microsoft Store Python sometimes has compatibility issues:
+
+1. Uninstall current Python
+2. Download from [python.org](https://www.python.org)
+3. Install (check "Add Python to PATH")
+4. Restart computer
+5. Try again
+
+#### 5. Update Windows
+Make sure Windows has all latest updates:
+
+1. Settings → Update & Security
+2. Click "Check for updates"
+3. Install everything
+4. Restart
+5. Try Voice Cloner Pro again
+
+### Quick Diagnostic
+
+Run this to identify the issue:
+
+```powershell
+python -c "
+import sys
+print(f'Python: {sys.version}')
+print(f'Platform: {sys.platform}')
+try:
+    from PyQt6 import QtCore
+    print('PyQt6: OK')
+except Exception as e:
+    print(f'PyQt6 Error: {e}')
+"
+```
+
 ---
 
 **Still having issues? Check the logs and run `python -m src.main detect` for system diagnostics.**
