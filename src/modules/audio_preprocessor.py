@@ -194,7 +194,7 @@ class AudioPreprocessor:
             logger.info("Removing silence...")
             intervals = librosa.effects.split(
                 audio_data,
-                top_db=40,  # Silence threshold
+                top_db=25,  # Lowered from 40 to be less aggressive (captures more audio)
                 frame_length=self.n_fft,
                 hop_length=self.hop_length,
             )
@@ -202,12 +202,16 @@ class AudioPreprocessor:
             logger.info(f"Found {len(intervals)} non-silent intervals")
 
             # Create segments from non-silent intervals
+            kept = 0
+            skipped_too_short = 0
             for start, end in intervals:
                 segment = audio_data[start:end]
                 duration = len(segment) / sr
 
                 # Filter by duration
                 if duration < self.config.MIN_DURATION:
+                    logger.debug(f"  Skipped segment: too short ({duration:.2f}s < {self.config.MIN_DURATION}s)")
+                    skipped_too_short += 1
                     continue
 
                 if duration > self.config.MAX_DURATION:
@@ -217,14 +221,19 @@ class AudioPreprocessor:
                         sub_segment = segment[i:i + max_samples]
                         if len(sub_segment) / sr >= self.config.MIN_DURATION:
                             segments.append(sub_segment)
+                            kept += 1
                 else:
                     segments.append(segment)
+                    kept += 1
+                    logger.debug(f"  Kept segment: {duration:.2f}s")
 
-            logger.info(f"✓ Created {len(segments)} segments")
+            logger.info(f"✓ Created {len(segments)} segments (kept: {kept}, skipped: {skipped_too_short})")
             return segments
 
         except Exception as e:
             logger.error(f"Error segmenting audio: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return []
 
     def generate_file_lists(self, segment_files: List[Path]) -> bool:

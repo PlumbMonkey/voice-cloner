@@ -46,7 +46,7 @@ class Config:
         self.N_FFT = int(os.getenv("N_FFT", "2048"))
         self.HOP_LENGTH = int(os.getenv("HOP_LENGTH", "512"))
         self.MONO = os.getenv("MONO", "true").lower() == "true"
-        self.MIN_DURATION = float(os.getenv("MIN_DURATION", "0.5"))
+        self.MIN_DURATION = float(os.getenv("MIN_DURATION", "0.3"))  # Lowered from 0.5
         self.MAX_DURATION = float(os.getenv("MAX_DURATION", "15"))
 
         # GPU settings

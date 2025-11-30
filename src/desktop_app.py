@@ -582,16 +582,58 @@ class VoiceClonerDesktopApp(QMainWindow):
 
     def run_preprocessing(self):
         """Run audio preprocessing"""
+        import os
         dir_path = self.preprocess_dir_input.text()
         if dir_path == "No directory selected":
             QMessageBox.warning(self, "Error", "Please select a directory first")
             return
 
         self.preprocess_log.append("🎵 Starting audio preprocessing...\n")
+        self.preprocess_log.append(f"Directory: {dir_path}\n")
         self.preprocess_progress.setVisible(True)
-        self.preprocess_progress.setValue(50)
+        self.preprocess_progress.setValue(10)
+
+        # Validate directory
+        if not os.path.exists(dir_path):
+            self.preprocess_log.append(f"❌ Error: Directory does not exist\n{dir_path}")
+            self.preprocess_progress.setVisible(False)
+            return
+
+        if not os.path.isdir(dir_path):
+            self.preprocess_log.append(f"❌ Error: Path is not a directory\n{dir_path}")
+            self.preprocess_progress.setVisible(False)
+            return
+
+        # Find audio files
+        supported_formats = ('.wav', '.mp3', '.flac', '.m4a', '.ogg')
+        audio_files = []
+        for file in os.listdir(dir_path):
+            if file.lower().endswith(supported_formats):
+                full_path = os.path.join(dir_path, file)
+                if os.path.isfile(full_path):
+                    audio_files.append(full_path)
+
+        self.preprocess_log.append(f"Found {len(audio_files)} audio files:\n")
+        if audio_files:
+            for i, f in enumerate(audio_files, 1):
+                file_size_mb = os.path.getsize(f) / (1024 * 1024)
+                self.preprocess_log.append(f"  {i}. {os.path.basename(f)} ({file_size_mb:.1f} MB)")
+            self.preprocess_log.append("")
+        else:
+            self.preprocess_log.append(f"❌ Error: No audio files found in {dir_path}")
+            self.preprocess_log.append(f"Supported formats: {', '.join(supported_formats)}")
+            self.preprocess_progress.setVisible(False)
+            return
+
+        self.preprocess_progress.setValue(25)
+        self.preprocess_log.append("Validating audio files...\n")
 
         try:
+            # Capture logs during preprocessing
+            import io
+            import sys
+            from src.utils.logger import logger
+            
             success = self.orchestrator.run_phase_3_audio_preprocessing(dir_path)
 
             if success:
@@ -599,18 +641,24 @@ class VoiceClonerDesktopApp(QMainWindow):
                 self.preprocess_progress.setValue(100)
             else:
                 self.preprocess_log.append("\n⚠️ Preprocessing encountered issues")
-                self.preprocess_log.append("\nMake sure your audio directory contains:")
-                self.preprocess_log.append("- WAV, MP3, or FLAC files")
-                self.preprocess_log.append("- At least 10-30 seconds of audio")
+                self.preprocess_log.append("\nCommon causes:")
+                self.preprocess_log.append("- Audio files detected as all silence (try lower silence threshold)")
+                self.preprocess_log.append("- Segments too short after silence removal")
+                self.preprocess_log.append("- Audio format or encoding issues")
+                self.preprocess_log.append("\nTry:")
+                self.preprocess_log.append("1. Use shorter, cleaner audio files")
+                self.preprocess_log.append("2. Record audio with consistent volume")
+                self.preprocess_log.append("3. Ensure audio files are not already heavily compressed")
                 self.preprocess_progress.setValue(75)
         except Exception as e:
             self.preprocess_log.append(f"\n❌ Preprocessing failed: {str(e)}")
             self.preprocess_log.append("\n\nTroubleshooting:")
-            self.preprocess_log.append("1. Select a directory with audio files (WAV, MP3, FLAC)")
-            self.preprocess_log.append("2. Ensure files are at least 10-30 seconds long")
-            self.preprocess_log.append("3. Check that filenames don't have special characters")
+            self.preprocess_log.append("1. Check that audio files are not corrupted")
+            self.preprocess_log.append("2. Ensure audio has clear voice content (not mostly silence)")
+            self.preprocess_log.append("3. Try a different audio file format (WAV recommended)")
+            self.preprocess_log.append("4. Check file permissions")
             import traceback
-            self.preprocess_log.append(f"\n{traceback.format_exc()}")
+            self.preprocess_log.append(f"\nDetailed error:\n{traceback.format_exc()}")
 
     def run_training(self):
         """Run model training"""
