@@ -220,15 +220,13 @@ class VoiceClonerDesktopApp(QMainWindow):
         title.setFont(QFont("Arial", 18, QFont.Weight.Bold))
         layout.addWidget(title)
 
-        # Detection section
-        layout.addWidget(QLabel("Step 1: Detect Environment"))
-        detect_btn = QPushButton("🔍 Detect System")
-        detect_btn.clicked.connect(self.run_detection)
-        layout.addWidget(detect_btn)
+        # Info section
+        info = QLabel("Click below to verify your environment and install any missing dependencies.")
+        layout.addWidget(info)
 
         # Setup section
-        layout.addWidget(QLabel("Step 2: Setup Environment"))
-        setup_btn = QPushButton("⚙️ Install & Setup")
+        layout.addWidget(QLabel("Install & Verify Dependencies:"))
+        setup_btn = QPushButton("⚙️ Setup Voice Cloner")
         setup_btn.clicked.connect(self.run_setup)
         layout.addWidget(setup_btn)
 
@@ -538,21 +536,6 @@ class VoiceClonerDesktopApp(QMainWindow):
         """Show page by ID"""
         page_map = {"home": 0, "setup": 1, "preprocess": 2, "train": 3, "infer": 4, "settings": 5}
         self.stacked_widget.setCurrentIndex(page_map.get(page_id, 0))
-
-    def run_detection(self):
-        """Run environment detection"""
-        self.setup_log.append("🔍 Starting environment detection...\n")
-        self.setup_progress.setVisible(True)
-        self.setup_progress.setValue(50)
-
-        success = self.orchestrator.run_phase_1_environment_detection()
-
-        if success:
-            self.setup_log.append("\n✅ Environment detection passed!")
-        else:
-            self.setup_log.append("\n❌ Environment detection failed!")
-
-        self.setup_progress.setValue(100)
 
     def run_setup(self):
         """Run environment setup"""
