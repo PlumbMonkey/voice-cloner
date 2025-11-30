@@ -45,7 +45,7 @@ class VoiceClonerInstaller:
         print(f"✓ Copied application files")
         
     def create_shortcut(self):
-        """Create desktop shortcut"""
+        """Create desktop shortcut using VBScript as fallback"""
         try:
             import win32com.client
             
@@ -54,13 +54,36 @@ class VoiceClonerInstaller:
             
             shell = win32com.client.Dispatch("WScript.Shell")
             shortcut = shell.CreateShortCut(str(shortcut_path))
-            shortcut.Targetpath = str(self.install_dir / 'launcher.py')
+            # Point to python executable, not the script
+            shortcut.Targetpath = str(Path(sys.executable))
+            shortcut.Arguments = str(self.install_dir / 'launcher.py')
             shortcut.WorkingDirectory = str(self.install_dir)
             shortcut.save()
             
             print(f"✓ Created desktop shortcut")
         except Exception as e:
-            print(f"⚠ Could not create shortcut: {e}")
+            # Fallback: Create shortcut using VBScript
+            try:
+                desktop = Path.home() / 'Desktop'
+                vbs_path = self.install_dir / 'create_shortcut.vbs'
+                python_exe = Path(sys.executable)
+                launcher_path = self.install_dir / 'launcher.py'
+                shortcut_path = desktop / 'Voice Cloner Pro.lnk'
+                
+                vbs_content = f"""Set oWS = WScript.CreateObject("WScript.Shell")
+sLinkFile = "{shortcut_path}"
+Set oLink = oWS.CreateShortCut(sLinkFile)
+oLink.TargetPath = "{python_exe}"
+oLink.Arguments = "{launcher_path}"
+oLink.WorkingDirectory = "{self.install_dir}"
+oLink.Description = "Voice Cloner Pro - Desktop Application"
+oLink.Save
+"""
+                vbs_path.write_text(vbs_content)
+                subprocess.run(['cscript.exe', str(vbs_path)], capture_output=True)
+                print(f"✓ Created desktop shortcut (VBScript)")
+            except Exception as vbs_err:
+                print(f"⚠ Could not create shortcut: {e}")
     
     def create_launcher(self):
         """Create launcher shortcuts"""
