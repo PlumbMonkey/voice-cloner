@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# PyInstaller build configuration for Voice Cloner Desktop App
+# Simplified PyInstaller spec for Voice Cloner - GUI only
+# Excludes heavy dependencies like torch, librosa for faster build
 
 block_cipher = None
 
@@ -7,29 +8,21 @@ a = Analysis(
     ['src/desktop_app.py'],
     pathex=['.'],
     binaries=[],
-    datas=[
-        ('docs', 'docs'),
-        ('assets', 'assets'),
-    ],
+    datas=[],
     hiddenimports=[
         'PyQt6',
-        'torch',
-        'torchaudio',
-        'librosa',
-        'soundfile',
-        'numpy',
-        'scipy',
-        'pydub',
-        'python_dotenv',
-        'pyyaml',
-        'click',
-        'rich',
-        'psutil',
+        'PyQt6.QtCore',
+        'PyQt6.QtGui',
+        'PyQt6.QtWidgets',
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludedimports=['matplotlib', 'tkinter'],
+    excludedimports=[
+        'torch', 'torchaudio', 'librosa', 'soundfile',
+        'numpy', 'scipy', 'pydub', 'matplotlib', 'tkinter',
+        'tensorflow', 'keras', 'sklearn', 'pandas'
+    ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -57,7 +50,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='assets/icon.ico',
 )
 
 coll = COLLECT(
