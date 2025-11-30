@@ -591,13 +591,26 @@ class VoiceClonerDesktopApp(QMainWindow):
         self.preprocess_progress.setVisible(True)
         self.preprocess_progress.setValue(50)
 
-        success = self.orchestrator.run_phase_3_audio_preprocessing(dir_path)
+        try:
+            success = self.orchestrator.run_phase_3_audio_preprocessing(dir_path)
 
-        if success:
-            self.preprocess_log.append("\n✅ Preprocessing completed!")
-            self.preprocess_progress.setValue(100)
-        else:
-            self.preprocess_log.append("\n❌ Preprocessing failed!")
+            if success:
+                self.preprocess_log.append("\n✅ Preprocessing completed!")
+                self.preprocess_progress.setValue(100)
+            else:
+                self.preprocess_log.append("\n⚠️ Preprocessing encountered issues")
+                self.preprocess_log.append("\nMake sure your audio directory contains:")
+                self.preprocess_log.append("- WAV, MP3, or FLAC files")
+                self.preprocess_log.append("- At least 10-30 seconds of audio")
+                self.preprocess_progress.setValue(75)
+        except Exception as e:
+            self.preprocess_log.append(f"\n❌ Preprocessing failed: {str(e)}")
+            self.preprocess_log.append("\n\nTroubleshooting:")
+            self.preprocess_log.append("1. Select a directory with audio files (WAV, MP3, FLAC)")
+            self.preprocess_log.append("2. Ensure files are at least 10-30 seconds long")
+            self.preprocess_log.append("3. Check that filenames don't have special characters")
+            import traceback
+            self.preprocess_log.append(f"\n{traceback.format_exc()}")
 
     def run_training(self):
         """Run model training"""
@@ -605,11 +618,27 @@ class VoiceClonerDesktopApp(QMainWindow):
         self.train_progress.setVisible(True)
         self.train_progress.setValue(10)
 
-        success = self.orchestrator.run_phase_4_model_training(
-            epochs=self.epochs_spinbox.value(),
-            batch_size=self.batch_size_spinbox.value(),
-            learning_rate=self.lr_spinbox.value(),
-        )
+        try:
+            success = self.orchestrator.run_phase_4_model_training(
+                epochs=self.epochs_spinbox.value(),
+                batch_size=self.batch_size_spinbox.value(),
+                learning_rate=self.lr_spinbox.value(),
+            )
+
+            if success:
+                self.train_log.append("\n✅ Training completed!")
+                self.train_progress.setValue(100)
+            else:
+                self.train_log.append("\n⚠️ Training encountered issues")
+                self.train_progress.setValue(75)
+        except Exception as e:
+            self.train_log.append(f"\n❌ Training failed: {str(e)}")
+            self.train_log.append("\nMake sure you have:")
+            self.train_log.append("- Completed audio preprocessing first")
+            self.train_log.append("- Sufficient GPU memory (8GB+ recommended)")
+            self.train_log.append("- PyTorch and CUDA installed")
+            import traceback
+            self.train_log.append(f"\n{traceback.format_exc()}")
 
         if success:
             self.train_log.append("\n✅ Training started! Monitor progress in terminal.")
@@ -646,14 +675,28 @@ class VoiceClonerDesktopApp(QMainWindow):
         self.infer_progress.setVisible(True)
         self.infer_progress.setValue(50)
 
-        success = self.orchestrator.run_phase_5_voice_inference(
-            input_file,
-            output_file,
-            pitch_shift=self.pitch_shift_spinbox.value(),
-            f0_method=self.f0_method_combo.currentText(),
-        )
+        try:
+            success = self.orchestrator.run_phase_5_voice_inference(
+                input_file,
+                output_file,
+                pitch_shift=self.pitch_shift_spinbox.value(),
+                f0_method=self.f0_method_combo.currentText(),
+            )
 
-        if success:
+            if success:
+                self.infer_log.append("\n✅ Voice conversion completed!")
+                self.infer_progress.setValue(100)
+            else:
+                self.infer_log.append("\n⚠️ Voice conversion encountered issues")
+                self.infer_progress.setValue(75)
+        except Exception as e:
+            self.infer_log.append(f"\n❌ Voice conversion failed: {str(e)}")
+            self.infer_log.append("\nMake sure you have:")
+            self.infer_log.append("- A trained model")
+            self.infer_log.append("- Valid input audio file (WAV, MP3, FLAC)")
+            self.infer_log.append("- Write permissions for output directory")
+            import traceback
+            self.infer_log.append(f"\n{traceback.format_exc()}")
             self.infer_log.append(f"\n✅ Conversion completed!")
             self.infer_log.append(f"Output saved to: {output_file}")
             self.infer_progress.setValue(100)
