@@ -1,18 +1,24 @@
 """
 Desktop Application Launcher for Voice Cloner
-PyQt6-based GUI with professional branding
+PyQt5-based GUI with professional branding
 """
 import sys
 import os
 from pathlib import Path
-from PyQt6.QtWidgets import (
+
+# Fix Python path to find src module
+_root_dir = Path(__file__).parent.parent
+if str(_root_dir) not in sys.path:
+    sys.path.insert(0, str(_root_dir))
+
+from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QProgressBar, QComboBox, QSpinBox, QDoubleSpinBox,
     QTabWidget, QTextEdit, QFileDialog, QMessageBox, QStatusBar, QMenuBar,
     QMenu, QListWidget, QListWidgetItem, QStackedWidget
 )
-from PyQt6.QtGui import QIcon, QPixmap, QFont, QColor
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize
+from PyQt5.QtGui import QIcon, QPixmap, QFont, QColor
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QSize
 from src.orchestrator import VoiceClonerOrchestrator
 from src.utils.logger import logger
 

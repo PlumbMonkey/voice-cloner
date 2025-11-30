@@ -10,5 +10,5 @@ pyyaml==6.0
 click==8.1.7
 rich==13.5.2
 psutil==5.9.5
-PyQt6==6.6.1
+PyQt5==5.15.9
 pyinstaller==6.1.0

@@ -19,6 +19,9 @@ def main():
     # Change to app directory
     os.chdir(app_dir)
     
+    # Add app directory to Python path so imports work
+    sys.path.insert(0, str(app_dir))
+    
     # Install dependencies silently
     print("Checking dependencies...")
     try:
@@ -33,8 +36,10 @@ def main():
     print("="*60 + "\n")
     
     try:
-        # Launch the desktop app
-        subprocess.run([sys.executable, "src/desktop_app.py"], check=False)
+        # Launch the desktop app with proper Python path
+        env = os.environ.copy()
+        env['PYTHONPATH'] = str(app_dir) + ":" + env.get('PYTHONPATH', '')
+        subprocess.run([sys.executable, "src/desktop_app.py"], check=False, env=env)
     except Exception as e:
         print(f"\n[ERROR] Error launching application: {e}")
         input("\nPress Enter to exit...")
