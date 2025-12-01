@@ -662,7 +662,7 @@ class VoiceClonerDesktopApp(QMainWindow):
 
     def run_training(self):
         """Run model training"""
-        self.train_log.append("🧠 Starting model training...\n")
+        self.train_log.append("[INFO] Starting model training...\n")
         self.train_progress.setVisible(True)
         self.train_progress.setValue(10)
 
@@ -674,25 +674,25 @@ class VoiceClonerDesktopApp(QMainWindow):
             )
 
             if success:
-                self.train_log.append("\n✅ Training completed!")
+                self.train_log.append("\n[OK] Training completed successfully!")
                 self.train_progress.setValue(100)
             else:
-                self.train_log.append("\n⚠️ Training encountered issues")
+                self.train_log.append("\n[WARNING] Training encountered issues")
                 self.train_progress.setValue(75)
         except Exception as e:
-            self.train_log.append(f"\n❌ Training failed: {str(e)}")
+            self.train_log.append(f"\n[ERROR] Training failed: {str(e)}")
             self.train_log.append("\nMake sure you have:")
             self.train_log.append("- Completed audio preprocessing first")
             self.train_log.append("- Sufficient GPU memory (8GB+ recommended)")
             self.train_log.append("- PyTorch and CUDA installed")
             import traceback
             self.train_log.append(f"\n{traceback.format_exc()}")
+            success = False
 
-        if success:
-            self.train_log.append("\n✅ Training started! Monitor progress in terminal.")
-            self.train_progress.setValue(100)
+        if not success:
+            self.train_log.append("\n[ERROR] Training failed!")
         else:
-            self.train_log.append("\n❌ Training failed!")
+            self.train_log.append("\n[OK] Model checkpoint saved. Ready for inference.")
 
     def select_infer_input(self):
         """Select inference input file"""
@@ -701,6 +701,8 @@ class VoiceClonerDesktopApp(QMainWindow):
         )
         if file_path:
             self.infer_input.setText(file_path)
+            # Reset output to auto-generate mode when new input is selected
+            self.infer_output.setText("Will auto-generate")
 
     def select_infer_output(self):
         """Select inference output file"""
