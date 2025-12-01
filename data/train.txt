@@ -35,3 +35,14 @@ wavs\segment_00033.wav
 wavs\segment_00034.wav
 wavs\segment_00035.wav
 wavs\segment_00036.wav
+wavs\segment_00037.wav
+wavs\segment_00038.wav
+wavs\segment_00039.wav
+wavs\segment_00040.wav
+wavs\segment_00041.wav
+wavs\segment_00042.wav
+wavs\segment_00043.wav
+wavs\segment_00044.wav
+wavs\segment_00045.wav
+wavs\segment_00046.wav
+wavs\segment_00047.wav

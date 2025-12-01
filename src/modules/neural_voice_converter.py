@@ -125,17 +125,27 @@ class NeuralVoiceConverter:
         return mel_spec
     
     def _mel_to_audio(self, mel_spec: np.ndarray) -> np.ndarray:
-        """Convert mel-spectrogram back to audio"""
+        """Convert mel-spectrogram back to audio using Griffin-Lim"""
         # Denormalize
         mel_spec = mel_spec * 40 - 40
         # Convert from dB
         mel_spec = librosa.db_to_power(mel_spec)
-        # Use Griffin-Lim algorithm
-        audio = librosa.feature.inverse.mel_to_audio(
-            mel_spec,
+        
+        # Convert mel to linear spectrogram
+        mel_basis = librosa.filters.mel(
             sr=self.sample_rate,
             n_fft=2048,
-            hop_length=512
+            n_mels=self.mel_bins
+        )
+        # Pseudo-inverse to get linear spectrogram
+        stft_matrix = np.dot(np.linalg.pinv(mel_basis), mel_spec)
+        
+        # Griffin-Lim algorithm with more iterations for better quality
+        audio = librosa.griffinlim(
+            stft_matrix,
+            n_iter=100,  # Increased from default for better reconstruction
+            hop_length=512,
+            win_length=2048
         )
         return audio
     
@@ -169,6 +179,9 @@ class NeuralVoiceConverter:
         if self.your_voice_embedding is None:
             raise ValueError("Voice embedding not extracted. Call extract_voice_embedding first.")
         
+        # Store source amplitude
+        source_rms = np.sqrt(np.mean(source_audio ** 2))
+        
         # Convert source to mel-spec
         source_mel = self._audio_to_mel(source_audio)
         
@@ -183,13 +196,25 @@ class NeuralVoiceConverter:
         # Convert back to numpy
         output_mel_np = output_mel.squeeze(0).cpu().numpy()
         
+        # Scale output mel-spec to match source energy
+        output_energy = np.mean(output_mel_np)
+        if output_energy > 0:
+            output_mel_np = output_mel_np * (np.mean(source_mel) / output_energy)
+        
         # Convert mel-spec to audio
         converted_audio = self._mel_to_audio(output_mel_np)
         
-        # Normalize
-        converted_audio = converted_audio / (np.max(np.abs(converted_audio)) + 1e-8)
+        # Restore source amplitude
+        output_rms = np.sqrt(np.mean(converted_audio ** 2))
+        if output_rms > 1e-8:
+            converted_audio = converted_audio * (source_rms / output_rms)
         
-        return converted_audio
+        # Normalize to prevent clipping
+        max_val = np.max(np.abs(converted_audio))
+        if max_val > 1.0:
+            converted_audio = converted_audio / max_val
+        
+        return converted_audio.astype(np.float32)
     
     def save_embedding(self, path: str):
         """Save voice embedding to file"""

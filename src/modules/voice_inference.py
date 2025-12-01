@@ -33,30 +33,11 @@ class VoiceInference:
         self.neural_converter = None
         self.use_neural_converter = False
         
-        # Try to load or create neural voice converter (PRIMARY METHOD)
+        # PRIMARY: Try to load or create speaker profile (works reliably)
         training_data_dir = Path("data/wavs")
-        neural_model_path = Path("neural_voice_model.npz")
-        
-        if training_data_dir.exists() and len(list(training_data_dir.glob("*.wav"))) > 0:
-            logger.info("Initializing neural voice converter...")
-            try:
-                # Get list of training audio files
-                training_files = sorted(training_data_dir.glob("*.wav"))
-                
-                # Train neural converter
-                self.neural_converter = train_voice_converter(
-                    [str(f) for f in training_files],
-                    device="cpu"
-                )
-                self.use_neural_converter = True
-                logger.info("[OK] Neural voice converter initialized - Real voice cloning enabled!")
-            except Exception as e:
-                logger.warning(f"Failed to initialize neural converter: {e}")
-        
-        # Fallback: Try to load or create speaker profile
         profile_path = Path("speaker_profile.json")
         
-        if profile_path.exists() and not self.use_neural_converter:
+        if profile_path.exists():
             logger.info("Loading existing speaker profile...")
             try:
                 with open(profile_path) as f:
@@ -66,7 +47,7 @@ class VoiceInference:
             except Exception as e:
                 logger.warning(f"Failed to load profile: {e}")
         
-        elif training_data_dir.exists() and len(list(training_data_dir.glob("*.wav"))) > 0 and not self.use_neural_converter:
+        elif training_data_dir.exists() and len(list(training_data_dir.glob("*.wav"))) > 0:
             logger.info("Creating speaker profile from training data...")
             try:
                 profile_obj = create_speaker_profile_from_training_data(str(training_data_dir))
@@ -77,8 +58,28 @@ class VoiceInference:
             except Exception as e:
                 logger.warning(f"Failed to create profile: {e}")
         
-        if not self.use_neural_converter and not self.use_speaker_profile:
-            logger.warning("Neither neural converter nor speaker profile available")
+        # Try to load or create neural voice converter (SECONDARY - for future improvements)
+        neural_model_path = Path("neural_voice_model.npz")
+        
+        # DISABLED: Neural converter produces NaN/buzzing sound
+        # if training_data_dir.exists() and len(list(training_data_dir.glob("*.wav"))) > 0 and self.use_speaker_profile:
+        #     logger.info("Initializing neural voice converter (backup)...")
+        #     try:
+        #         # Get list of training audio files
+        #         training_files = sorted(training_data_dir.glob("*.wav"))
+        #         
+        #         # Train neural converter
+        #         self.neural_converter = train_voice_converter(
+        #             [str(f) for f in training_files],
+        #             device="cpu"
+        #         )
+        #         self.use_neural_converter = True
+        #         logger.info("[OK] Neural voice converter initialized")
+        #     except Exception as e:
+        #         logger.warning(f"Failed to initialize neural converter: {e}")
+        
+        if not self.use_speaker_profile and not self.use_neural_converter:
+            logger.warning("Neither speaker profile nor neural converter available")
         
         # Try to initialize SO-VITS-SVC wrapper if model path provided
         if model_path and Path(model_path).exists():
