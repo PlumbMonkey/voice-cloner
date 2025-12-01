@@ -155,9 +155,18 @@ class VoiceClonerOrchestrator:
         logger.info("=" * 80)
 
         if not self.workflow_state["ready_for_inference"]:
-            logger.error("⚠️  A trained model is required for inference")
+            logger.error("A trained model is required for inference")
             logger.info("Run phases 1-4 to train a model first")
             return False
+
+        # If no model path provided, find the latest checkpoint
+        if not model_path:
+            checkpoint_dir = self.config.PROJECT_ROOT / "checkpoints"
+            if checkpoint_dir.exists():
+                checkpoints = sorted(checkpoint_dir.glob("*.pth"))
+                if checkpoints:
+                    model_path = str(checkpoints[-1])
+                    logger.info(f"Using latest checkpoint: {checkpoints[-1].name}")
 
         # Initialize inference
         self.inference = VoiceInference(self.config, model_path)

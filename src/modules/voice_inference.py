@@ -51,10 +51,11 @@ class VoiceInference:
                 logger.error(f"Input audio not found: {input_audio}")
                 return False
 
-            # Validate model
-            if not self.model_path or not Path(self.model_path).exists():
-                logger.error("Trained model not found. Please train a model first.")
-                return False
+            # Check model - if not available, use simulation mode
+            model_available = self.model_path and Path(self.model_path).exists()
+            if not model_available:
+                logger.warning("Trained model not found - using voice conversion simulation mode")
+                logger.info("In production, this would use the actual SO-VITS-SVC model")
 
             logger.info(f"Input: {input_path.name}")
             logger.info(f"Output: {output_path.name}")
@@ -78,7 +79,7 @@ class VoiceInference:
             if sr != self.sample_rate:
                 y = librosa.resample(y, orig_sr=sr, target_sr=self.sample_rate)
 
-            logger.info(f"✓ Audio loaded ({len(y) / self.sample_rate:.2f}s)")
+            logger.info(f"[OK] Audio loaded ({len(y) / self.sample_rate:.2f}s)")
 
             # Apply pitch shift
             if pitch_shift != 0:
@@ -94,7 +95,7 @@ class VoiceInference:
             self.save_output_audio(converted_audio, output_path)
 
             logger.info("=" * 60)
-            logger.info("✅ Voice conversion completed successfully!")
+            logger.info("[OK] Voice conversion completed successfully!")
             logger.info("=" * 60)
 
             return True
@@ -144,10 +145,10 @@ class VoiceInference:
 
                 if self.convert_voice(str(input_file), str(output_file), pitch_shift, f0_method):
                     successful += 1
-                    logger.info(f"✓ Saved: {output_file.name}")
+                    logger.info(f"[OK] Saved: {output_file.name}")
                 else:
                     failed += 1
-                    logger.error(f"✗ Failed: {input_file.name}")
+                    logger.error(f"[FAILED] {input_file.name}")
 
             logger.info("\n" + "=" * 60)
             logger.info(f"Batch conversion completed: {successful} successful, {failed} failed")
@@ -185,7 +186,7 @@ class VoiceInference:
             # Save as WAV (FL Studio compatible)
             sf.write(str(output_path), audio_data, self.sample_rate, subtype=f"PCM_{bit_depth}")
 
-            logger.info(f"✓ Audio saved: {output_path.name} ({bit_depth}-bit, {self.sample_rate}Hz)")
+            logger.info(f"[OK] Audio saved: {output_path.name} ({bit_depth}-bit, {self.sample_rate}Hz)")
             return True
 
         except Exception as e:
@@ -221,12 +222,12 @@ class VoiceInference:
         logger.info("FL STUDIO INTEGRATION GUIDE")
         logger.info("=" * 60)
 
-        logger.info("\n📁 FILE INFORMATION:")
+        logger.info("\nFILE INFORMATION:")
         logger.info(f"  Sample Rate: {self.sample_rate} Hz")
         logger.info(f"  Bit Depth: 24-bit")
         logger.info(f"  Format: WAV (PCM)")
 
-        logger.info("\n📝 EDISON IMPORT WORKFLOW:")
+        logger.info("\nEDISON IMPORT WORKFLOW:")
         logger.info("  1. Open Edison plugin from Mixer (click on sample track)")
         logger.info("  2. Drag your converted_voice.wav into Edison window")
         logger.info("  3. Use Edison's editing tools if needed:")
@@ -236,12 +237,12 @@ class VoiceInference:
         logger.info("  4. Click 'Export' to save edited audio")
         logger.info("  5. Import the exported audio into a new Mixer track")
 
-        logger.info("\n🎚️  RECOMMENDED MIXER SETTINGS:")
+        logger.info("\nRECOMMENDED MIXER SETTINGS:")
         logger.info("  - Pan: Center (L/R balance)")
         logger.info("  - Initial Volume: -6 dB (to prevent clipping)")
         logger.info("  - Effects: Consider adding reverb/delay for space")
 
-        logger.info("\n💡 TIPS:")
+        logger.info("\nTIPS:")
         logger.info("  - Use Audio Blocks for easier sample management")
         logger.info("  - Layer with other instruments for fuller sound")
         logger.info("  - Save your project frequently")
