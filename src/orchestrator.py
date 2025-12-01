@@ -73,6 +73,7 @@ class VoiceClonerOrchestrator:
         logger.info("\n" + "=" * 80)
         logger.info("PHASE 3: AUDIO PREPROCESSING")
         logger.info("=" * 80)
+        logger.info(f"Input directory: {input_directory}")
 
         if not self.workflow_state["env_setup"]:
             logger.error("⚠️  Phase 2 (Environment Setup) must run first")
@@ -80,8 +81,14 @@ class VoiceClonerOrchestrator:
             return False
 
         try:
-            logger.info(f"Starting preprocessing pipeline for: {input_directory}")
+            logger.info("="*80)
+            logger.info("Starting preprocessing pipeline...")
+            logger.info("="*80)
             success = self.preprocessor.run_preprocessing_pipeline(input_directory)
+            logger.info("="*80)
+            logger.info(f"Preprocessing result: {success}")
+            logger.info("="*80)
+            
             self.workflow_state["audio_processed"] = success
 
             if success:
@@ -94,9 +101,12 @@ class VoiceClonerOrchestrator:
 
             return success
         except Exception as e:
-            logger.error(f"Exception during preprocessing: {e}")
+            logger.error("="*80)
+            logger.error(f"EXCEPTION during preprocessing: {type(e).__name__}: {str(e)}")
+            logger.error("="*80)
             import traceback
             logger.error(traceback.format_exc())
+            logger.error("="*80)
             return False
 
     def run_phase_4_model_training(
