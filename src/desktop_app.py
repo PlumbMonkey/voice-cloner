@@ -355,7 +355,7 @@ class VoiceClonerDesktopApp(QMainWindow):
         layout.addLayout(input_layout)
 
         # Output file
-        layout.addWidget(QLabel("Output file (auto-generated if not changed):"))
+        layout.addWidget(QLabel("Output folder (filename auto-generated):"))
         output_layout = QHBoxLayout()
         self.infer_output = QLabel("Will auto-generate")
         output_btn = QPushButton("📁 Browse")
@@ -705,12 +705,12 @@ class VoiceClonerDesktopApp(QMainWindow):
             self.infer_output.setText("Will auto-generate")
 
     def select_infer_output(self):
-        """Select inference output file"""
-        file_path, _ = QFileDialog.getSaveFileName(
-            self, "Select output file", filter="WAV Files (*.wav)"
+        """Select inference output folder"""
+        folder_path = QFileDialog.getExistingDirectory(
+            self, "Select folder to save cloned voice"
         )
-        if file_path:
-            self.infer_output.setText(file_path)
+        if folder_path:
+            self.infer_output.setText(folder_path)
 
     def run_inference(self):
         """Run voice inference"""
@@ -721,11 +721,20 @@ class VoiceClonerDesktopApp(QMainWindow):
             QMessageBox.warning(self, "Error", "Please select an input audio file")
             return
 
-        # Auto-generate temp output file (will be renamed after success)
+        # Determine output folder
         from pathlib import Path
         input_path = Path(input_file)
-        temp_output_file = str(input_path.parent / f".{input_path.stem}_temp_cloned.wav")
-
+        output_folder_text = self.infer_output.text()
+        
+        if output_folder_text == "Will auto-generate":
+            # Use same folder as input
+            output_folder = input_path.parent
+        else:
+            output_folder = Path(output_folder_text)
+        
+        # Auto-generate output filename
+        output_file = str(output_folder / f"{input_path.stem}_cloned.wav")
+        
         self.infer_log.append("[INFO] Starting voice conversion...\n")
         self.infer_progress.setVisible(True)
         self.infer_progress.setValue(50)
@@ -733,42 +742,19 @@ class VoiceClonerDesktopApp(QMainWindow):
         try:
             success = self.orchestrator.run_phase_5_voice_inference(
                 input_file,
-                temp_output_file,
+                output_file,
                 pitch_shift=self.pitch_shift_spinbox.value(),
                 f0_method=self.f0_method_combo.currentText(),
             )
 
             if success:
-                # Ask user to name the output file
-                output_file, _ = QFileDialog.getSaveFileName(
-                    self, 
-                    "Save cloned voice as...", 
-                    str(input_path.parent / f"{input_path.stem}_cloned.wav"),
-                    filter="WAV Files (*.wav)"
-                )
-                
-                if output_file:
-                    # Move temp file to user's chosen location
-                    import shutil
-                    shutil.move(temp_output_file, output_file)
-                    self.infer_log.append("\n[OK] Voice conversion completed!")
-                    self.infer_log.append(f"Saved to: {output_file}")
-                    self.infer_output.setText(output_file)
-                    self.infer_progress.setValue(100)
-                else:
-                    # User cancelled save dialog
-                    import os
-                    if os.path.exists(temp_output_file):
-                        os.remove(temp_output_file)
-                    self.infer_log.append("\n[INFO] Save cancelled by user")
-                    self.infer_progress.setValue(0)
+                self.infer_log.append("\n[OK] Voice conversion completed!")
+                self.infer_log.append(f"Saved to: {output_file}")
+                self.infer_output.setText(str(output_folder))
+                self.infer_progress.setValue(100)
             else:
                 self.infer_log.append("\n[WARNING] Voice conversion encountered issues")
                 self.infer_progress.setValue(75)
-                # Clean up temp file on failure
-                import os
-                if os.path.exists(temp_output_file):
-                    os.remove(temp_output_file)
                     
         except Exception as e:
             self.infer_log.append(f"\n[ERROR] Voice conversion failed: {str(e)}")
@@ -779,10 +765,6 @@ class VoiceClonerDesktopApp(QMainWindow):
             import traceback
             self.infer_log.append(f"\nTraceback:\n{traceback.format_exc()}")
             self.infer_progress.setValue(0)
-            # Clean up temp file on error
-            import os
-            if os.path.exists(temp_output_file):
-                os.remove(temp_output_file)
 
     def show_about(self):
         """Show about dialog"""
