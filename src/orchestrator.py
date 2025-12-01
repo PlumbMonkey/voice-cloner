@@ -132,7 +132,7 @@ class VoiceClonerOrchestrator:
         stats = self.preprocessor.get_preprocessing_stats()
         time_estimate = self.trainer.estimate_training_time(stats.get("segments", 1))
 
-        logger.info(f"\n⏱️  Estimated Training Time: {int(time_estimate.get('estimated_hours', 0))}h {int(time_estimate.get('estimated_minutes', 0))}m")
+        logger.info(f"\n⏱ Estimated Training Time: {int(time_estimate.get('estimated_hours', 0))}h {int(time_estimate.get('estimated_minutes', 0))}m")
 
         # Start training
         success = self.trainer.start_training()

@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Optional
 from rich.logging import RichHandler
 from rich.console import Console
+import sys
+import io
 
 
 class Logger:
@@ -20,9 +22,15 @@ class Logger:
         # Remove existing handlers
         self.logger.handlers.clear()
 
+        # Force UTF-8 encoding for console output on Windows
+        if sys.stdout.encoding and 'utf' not in sys.stdout.encoding.lower():
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        if sys.stderr.encoding and 'utf' not in sys.stderr.encoding.lower():
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
         # Console handler with Rich formatting
         console_handler = RichHandler(
-            console=Console(),
+            console=Console(force_terminal=True, force_unicode=True),
             show_time=True,
             show_level=True,
             show_path=True,
@@ -41,7 +49,7 @@ class Logger:
         if log_file:
             log_path = Path(log_file)
             log_path.parent.mkdir(parents=True, exist_ok=True)
-            file_handler = logging.FileHandler(log_file)
+            file_handler = logging.FileHandler(log_file, encoding='utf-8')
             file_handler.setLevel(logging.DEBUG)
             file_handler.setFormatter(formatter)
             self.logger.addHandler(file_handler)
