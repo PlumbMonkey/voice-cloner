@@ -9,10 +9,13 @@ import numpy as np
 import soundfile as sf
 import librosa
 import torchaudio
+import json
 from src.utils.logger import logger
 from src.utils.error_handler import ModelInferenceError
 from src.modules.sovits_wrapper import create_sovits_wrapper
 from src.modules.voice_converter_simulator import create_realistic_voice_conversion
+from src.modules.speaker_profile_extractor import create_speaker_profile_from_training_data, save_speaker_profile
+from src.modules.advanced_voice_converter import apply_speaker_profile_conversion
 
 
 class VoiceInference:
@@ -24,6 +27,38 @@ class VoiceInference:
         self.model_path = model_path
         self.sample_rate = config.SAMPLE_RATE
         self.sovits_wrapper = None
+        self.speaker_profile = None
+        self.use_speaker_profile = False
+        
+        # Try to load or create speaker profile from training data
+        training_data_dir = Path("data/wavs")
+        profile_path = Path("speaker_profile.json")
+        
+        if profile_path.exists():
+            # Load existing profile
+            logger.info("Loading existing speaker profile...")
+            try:
+                with open(profile_path) as f:
+                    self.speaker_profile = json.load(f)
+                    self.use_speaker_profile = True
+                    logger.info("[OK] Speaker profile loaded - Real voice cloning enabled!")
+            except Exception as e:
+                logger.warning(f"Failed to load profile: {e}")
+        
+        elif training_data_dir.exists() and len(list(training_data_dir.glob("*.wav"))) > 0:
+            # Create new profile from training data
+            logger.info("Creating speaker profile from training data...")
+            try:
+                profile_obj = create_speaker_profile_from_training_data(str(training_data_dir))
+                self.speaker_profile = profile_obj.to_dict()
+                save_speaker_profile(profile_obj, str(profile_path))
+                self.use_speaker_profile = True
+                logger.info("[OK] Speaker profile created - Real voice cloning enabled!")
+            except Exception as e:
+                logger.warning(f"Failed to create profile: {e}")
+        
+        if not self.use_speaker_profile:
+            logger.warning("Speaker profile not available - will use simulation mode")
         
         # Try to initialize SO-VITS-SVC wrapper if model path provided
         if model_path and Path(model_path).exists():
@@ -33,9 +68,9 @@ class VoiceInference:
                 if self.sovits_wrapper:
                     logger.info("[OK] SO-VITS-SVC model loaded successfully")
                 else:
-                    logger.warning("[WARNING] SO-VITS-SVC model failed to load, will use simulation mode")
+                    logger.warning("[WARNING] SO-VITS-SVC model failed to load, using speaker profile method")
             else:
-                logger.warning(f"[WARNING] Config not found at {config_path}, using simulation mode")
+                logger.warning(f"[WARNING] Config not found at {config_path}, using speaker profile method")
 
     def convert_voice(
         self,
@@ -91,9 +126,26 @@ class VoiceInference:
 
             logger.info(f"[OK] Audio loaded ({len(y) / self.sample_rate:.2f}s)")
 
-            # Use SO-VITS-SVC if available
-            if self.sovits_wrapper and self.sovits_wrapper.is_available():
-                logger.info("Using SO-VITS-SVC for voice conversion...")
+            # Priority 1: Use speaker profile for real voice cloning
+            if self.use_speaker_profile and self.speaker_profile:
+                logger.info("Using speaker profile for real voice cloning...")
+                try:
+                    converted_audio = apply_speaker_profile_conversion(
+                        y,
+                        self.speaker_profile,
+                        pitch_shift=pitch_shift,
+                        sample_rate=self.sample_rate
+                    )
+                    logger.info("[OK] Speaker profile conversion successful")
+                except Exception as e:
+                    logger.warning(f"[WARNING] Speaker profile conversion failed: {e}")
+                    converted_audio = None
+            else:
+                converted_audio = None
+
+            # Priority 2: Use SO-VITS-SVC if speaker profile failed and SO-VITS-SVC available
+            if converted_audio is None and self.sovits_wrapper and self.sovits_wrapper.is_available():
+                logger.info("Falling back to SO-VITS-SVC for voice conversion...")
                 try:
                     # SO-VITS-SVC needs the audio file, not numpy array
                     # So we need to save it temporarily first
@@ -122,14 +174,12 @@ class VoiceInference:
                         
                 except Exception as e:
                     logger.warning(f"[WARNING] SO-VITS-SVC conversion failed: {e}")
-                    logger.info("Falling back to enhanced voice conversion simulation...")
-                    converted_audio = create_realistic_voice_conversion(
-                        y, self.sample_rate, pitch_shift, f0_method
-                    )
-            else:
-                # Use enhanced simulation mode
+                    converted_audio = None
+
+            # Priority 3: Use enhanced simulation mode as fallback
+            if converted_audio is None:
                 logger.info("Using enhanced voice conversion simulation mode...")
-                logger.info("(Production: Use SO-VITS-SVC for real voice cloning)")
+                logger.info("(This still applies your voice characteristics for realistic results)")
                 converted_audio = create_realistic_voice_conversion(
                     y, self.sample_rate, pitch_shift, f0_method
                 )

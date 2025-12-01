@@ -1,0 +1,17 @@
+{
+  "formant_frequencies": [
+    7363.265306122448,
+    7522.448979591836,
+    7681.632653061224,
+    7840.816326530612
+  ],
+  "spectral_centroid": 1642.6778230210903,
+  "spectral_rolloff": 2734.08954583163,
+  "mfcc_mean": [],
+  "pitch_range": [
+    60.0,
+    300.0
+  ],
+  "vibrato_rate": 5.0,
+  "vibrato_depth": 0.05
+}
