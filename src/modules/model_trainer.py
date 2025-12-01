@@ -226,7 +226,7 @@ class ModelTrainer:
                 logger.error(f"Checkpoint not found: {checkpoint_path}")
                 return False
 
-            logger.info(f"✓ Checkpoint loaded: {checkpoint_file.name}")
+            logger.info(f"[OK] Checkpoint loaded: {checkpoint_file.name}")
             return True
 
         except Exception as e:

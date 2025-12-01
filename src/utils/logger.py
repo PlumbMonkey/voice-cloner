@@ -4,10 +4,16 @@ Logging utility for Voice Cloner
 import logging
 from pathlib import Path
 from typing import Optional
-from rich.logging import RichHandler
-from rich.console import Console
 import sys
 import io
+
+# Force UTF-8 encoding early
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except:
+        pass
 
 
 class Logger:
@@ -16,43 +22,57 @@ class Logger:
     def __init__(
         self, name: str = "VoiceCloner", log_file: Optional[str] = None
     ):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
+        try:
+            from rich.logging import RichHandler
+            from rich.console import Console
+            
+            self.logger = logging.getLogger(name)
+            self.logger.setLevel(logging.DEBUG)
 
-        # Remove existing handlers
-        self.logger.handlers.clear()
+            # Remove existing handlers
+            self.logger.handlers.clear()
 
-        # Force UTF-8 encoding for console output on Windows
-        if sys.stdout.encoding and 'utf' not in sys.stdout.encoding.lower():
-            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-        if sys.stderr.encoding and 'utf' not in sys.stderr.encoding.lower():
-            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+            # Console handler with Rich formatting
+            try:
+                console_handler = RichHandler(
+                    console=Console(force_terminal=True, force_unicode=True, legacy_windows=False),
+                    show_time=True,
+                    show_level=True,
+                    show_path=True,
+                )
+            except:
+                # Fallback if Rich fails
+                console_handler = logging.StreamHandler(sys.stdout)
+                
+            console_handler.setLevel(logging.DEBUG)
 
-        # Console handler with Rich formatting
-        console_handler = RichHandler(
-            console=Console(force_terminal=True, force_unicode=True),
-            show_time=True,
-            show_level=True,
-            show_path=True,
-        )
-        console_handler.setLevel(logging.DEBUG)
+            # Formatter
+            formatter = logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            )
+            console_handler.setFormatter(formatter)
 
-        # Formatter
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
-        console_handler.setFormatter(formatter)
+            self.logger.addHandler(console_handler)
 
-        self.logger.addHandler(console_handler)
-
-        # File handler if specified
-        if log_file:
-            log_path = Path(log_file)
-            log_path.parent.mkdir(parents=True, exist_ok=True)
-            file_handler = logging.FileHandler(log_file, encoding='utf-8')
-            file_handler.setLevel(logging.DEBUG)
-            file_handler.setFormatter(formatter)
-            self.logger.addHandler(file_handler)
+            # File handler if specified
+            if log_file:
+                log_path = Path(log_file)
+                log_path.parent.mkdir(parents=True, exist_ok=True)
+                try:
+                    file_handler = logging.FileHandler(log_file, encoding='utf-8')
+                except:
+                    file_handler = logging.FileHandler(log_file)
+                file_handler.setLevel(logging.DEBUG)
+                file_handler.setFormatter(formatter)
+                self.logger.addHandler(file_handler)
+        except Exception as e:
+            # Ultimate fallback - basic logging
+            self.logger = logging.getLogger(name)
+            self.logger.setLevel(logging.DEBUG)
+            self.logger.handlers.clear()
+            handler = logging.StreamHandler(sys.stdout)
+            handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+            self.logger.addHandler(handler)
 
     def debug(self, msg: str, *args, **kwargs):
         self.logger.debug(msg, *args, **kwargs)
