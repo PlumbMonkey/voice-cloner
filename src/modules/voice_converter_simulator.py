@@ -204,23 +204,43 @@ def create_realistic_voice_conversion(
     Returns:
         Converted audio
     """
-    simulator = VoiceConversionSimulator(sample_rate)
+    # Start with pitch shift (most important)
+    result = librosa.effects.pitch_shift(audio, sr=sample_rate, n_steps=pitch_shift)
     
-    # Apply transformation chain based on pitch shift
-    # More aggressive transformation with larger pitch shifts
-    pitch_abs = abs(pitch_shift)
-    intensity = min(pitch_abs / 12.0, 1.0)  # Normalize to 0-1
+    # Apply spectral brightness shift based on pitch direction
+    # This creates the character transformation
+    if pitch_shift != 0:
+        nyquist = sample_rate / 2
+        pitch_abs = abs(pitch_shift)
+        
+        if pitch_shift > 0:
+            # Higher pitch: brighten (emphasize highs)
+            # Shift from 0.5 (bright) to 0.3 (very bright) as pitch increases
+            brightness_factor = max(0.3, 0.5 - (pitch_abs / 24.0))
+        else:
+            # Lower pitch: darken (emphasize lows)
+            # Shift from 0.5 (dark) to 0.7 (very dark) as pitch decreases
+            brightness_factor = min(0.7, 0.5 + (pitch_abs / 24.0))
+        
+        # Apply EQ filter
+        cutoff = nyquist * brightness_factor
+        order = 3
+        try:
+            if pitch_shift > 0:
+                # High-pass filter for brightness
+                sos = signal.butter(order, cutoff, btype='high', fs=sample_rate, output='sos')
+            else:
+                # Low-pass filter for darkness
+                sos = signal.butter(order, cutoff, btype='low', fs=sample_rate, output='sos')
+            
+            result = signal.sosfilt(sos, result)
+            
+            # Normalize
+            max_val = np.max(np.abs(result))
+            if max_val > 1.0:
+                result = result / max_val
+        except Exception:
+            # If filter fails, continue with pitch-shifted audio
+            pass
     
-    # Parameters that scale with shift intensity
-    formant_shift = 1.0 + (intensity * 0.15 if pitch_shift > 0 else -intensity * 0.1)
-    brightness = 1.0 + (intensity * 0.3 if pitch_shift > 0 else -intensity * 0.2)
-    vocoder_quality = 0.95 - (intensity * 0.1)  # More quality reduction with more shift
-    
-    return simulator.convert_voice(
-        audio,
-        pitch_shift=pitch_shift,
-        formant_shift=formant_shift,
-        brightness=brightness,
-        time_stretch=1.0,
-        vocoder_quality=max(vocoder_quality, 0.7)
-    )
+    return result
