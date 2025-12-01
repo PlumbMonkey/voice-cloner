@@ -715,38 +715,61 @@ class VoiceClonerDesktopApp(QMainWindow):
     def run_inference(self):
         """Run voice inference"""
         input_file = self.infer_input.text()
-        output_file = self.infer_output.text()
-
+        
         # Check input file
         if input_file == "No file selected":
             QMessageBox.warning(self, "Error", "Please select an input audio file")
             return
 
-        # Auto-generate output if not explicitly set
-        if output_file == "Will auto-generate":
-            from pathlib import Path
-            input_path = Path(input_file)
-            output_file = str(input_path.parent / f"{input_path.stem}_cloned.wav")
-            self.infer_output.setText(output_file)
+        # Auto-generate temp output file (will be renamed after success)
+        from pathlib import Path
+        input_path = Path(input_file)
+        temp_output_file = str(input_path.parent / f".{input_path.stem}_temp_cloned.wav")
 
-        self.infer_log.append("🎙️ Starting voice conversion...\n")
+        self.infer_log.append("[INFO] Starting voice conversion...\n")
         self.infer_progress.setVisible(True)
         self.infer_progress.setValue(50)
 
         try:
             success = self.orchestrator.run_phase_5_voice_inference(
                 input_file,
-                output_file,
+                temp_output_file,
                 pitch_shift=self.pitch_shift_spinbox.value(),
                 f0_method=self.f0_method_combo.currentText(),
             )
 
             if success:
-                self.infer_log.append("\n[OK] Voice conversion completed!")
-                self.infer_progress.setValue(100)
+                # Ask user to name the output file
+                output_file, _ = QFileDialog.getSaveFileName(
+                    self, 
+                    "Save cloned voice as...", 
+                    str(input_path.parent / f"{input_path.stem}_cloned.wav"),
+                    filter="WAV Files (*.wav)"
+                )
+                
+                if output_file:
+                    # Move temp file to user's chosen location
+                    import shutil
+                    shutil.move(temp_output_file, output_file)
+                    self.infer_log.append("\n[OK] Voice conversion completed!")
+                    self.infer_log.append(f"Saved to: {output_file}")
+                    self.infer_output.setText(output_file)
+                    self.infer_progress.setValue(100)
+                else:
+                    # User cancelled save dialog
+                    import os
+                    if os.path.exists(temp_output_file):
+                        os.remove(temp_output_file)
+                    self.infer_log.append("\n[INFO] Save cancelled by user")
+                    self.infer_progress.setValue(0)
             else:
                 self.infer_log.append("\n[WARNING] Voice conversion encountered issues")
                 self.infer_progress.setValue(75)
+                # Clean up temp file on failure
+                import os
+                if os.path.exists(temp_output_file):
+                    os.remove(temp_output_file)
+                    
         except Exception as e:
             self.infer_log.append(f"\n[ERROR] Voice conversion failed: {str(e)}")
             self.infer_log.append("\nMake sure you have:")
@@ -754,12 +777,12 @@ class VoiceClonerDesktopApp(QMainWindow):
             self.infer_log.append("- Valid input audio file (WAV, MP3, FLAC)")
             self.infer_log.append("- Write permissions for output directory")
             import traceback
-            self.infer_log.append(f"\n{traceback.format_exc()}")
-            self.infer_log.append(f"\n✅ Conversion completed!")
-            self.infer_log.append(f"Output saved to: {output_file}")
-            self.infer_progress.setValue(100)
-        else:
-            self.infer_log.append("\n❌ Conversion failed!")
+            self.infer_log.append(f"\nTraceback:\n{traceback.format_exc()}")
+            self.infer_progress.setValue(0)
+            # Clean up temp file on error
+            import os
+            if os.path.exists(temp_output_file):
+                os.remove(temp_output_file)
 
     def show_about(self):
         """Show about dialog"""
