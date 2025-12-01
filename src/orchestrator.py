@@ -154,10 +154,9 @@ class VoiceClonerOrchestrator:
         logger.info("PHASE 5: VOICE INFERENCE")
         logger.info("=" * 80)
 
-        if not self.workflow_state["ready_for_inference"]:
-            logger.error("A trained model is required for inference")
-            logger.info("Run phases 1-4 to train a model first")
-            return False
+        # Note: Inference doesn't strictly require the workflow state flag
+        # since users may restart the app after training
+        logger.info("Preparing for voice inference...")
 
         # If no model path provided, find the latest checkpoint
         if not model_path:

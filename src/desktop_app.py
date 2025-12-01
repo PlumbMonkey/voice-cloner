@@ -355,9 +355,9 @@ class VoiceClonerDesktopApp(QMainWindow):
         layout.addLayout(input_layout)
 
         # Output file
-        layout.addWidget(QLabel("Output file:"))
+        layout.addWidget(QLabel("Output file (auto-generated if not changed):"))
         output_layout = QHBoxLayout()
-        self.infer_output = QLabel("No file selected")
+        self.infer_output = QLabel("Will auto-generate")
         output_btn = QPushButton("📁 Browse")
         output_btn.clicked.connect(self.select_infer_output)
         output_layout.addWidget(self.infer_output)
@@ -380,11 +380,11 @@ class VoiceClonerDesktopApp(QMainWindow):
         params_layout.addStretch()
         layout.addLayout(params_layout)
 
-        # Convert button
-        convert_btn = QPushButton("🎵 Convert Voice")
-        convert_btn.setStyleSheet(self.get_button_style(primary=True))
-        convert_btn.clicked.connect(self.run_inference)
-        layout.addWidget(convert_btn)
+        # Generate button
+        generate_btn = QPushButton("🎙️ Generate Clone")
+        generate_btn.setStyleSheet(self.get_button_style(primary=True))
+        generate_btn.clicked.connect(self.run_inference)
+        layout.addWidget(generate_btn)
 
         # Progress
         self.infer_progress = QProgressBar()
@@ -715,9 +715,17 @@ class VoiceClonerDesktopApp(QMainWindow):
         input_file = self.infer_input.text()
         output_file = self.infer_output.text()
 
-        if input_file == "No file selected" or output_file == "No file selected":
-            QMessageBox.warning(self, "Error", "Please select both input and output files")
+        # Check input file
+        if input_file == "No file selected":
+            QMessageBox.warning(self, "Error", "Please select an input audio file")
             return
+
+        # Auto-generate output if not explicitly set
+        if output_file == "Will auto-generate":
+            from pathlib import Path
+            input_path = Path(input_file)
+            output_file = str(input_path.parent / f"{input_path.stem}_cloned.wav")
+            self.infer_output.setText(output_file)
 
         self.infer_log.append("🎙️ Starting voice conversion...\n")
         self.infer_progress.setVisible(True)
@@ -732,13 +740,13 @@ class VoiceClonerDesktopApp(QMainWindow):
             )
 
             if success:
-                self.infer_log.append("\n✅ Voice conversion completed!")
+                self.infer_log.append("\n[OK] Voice conversion completed!")
                 self.infer_progress.setValue(100)
             else:
-                self.infer_log.append("\n⚠️ Voice conversion encountered issues")
+                self.infer_log.append("\n[WARNING] Voice conversion encountered issues")
                 self.infer_progress.setValue(75)
         except Exception as e:
-            self.infer_log.append(f"\n❌ Voice conversion failed: {str(e)}")
+            self.infer_log.append(f"\n[ERROR] Voice conversion failed: {str(e)}")
             self.infer_log.append("\nMake sure you have:")
             self.infer_log.append("- A trained model")
             self.infer_log.append("- Valid input audio file (WAV, MP3, FLAC)")
