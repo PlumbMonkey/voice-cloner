@@ -29,75 +29,102 @@ class AudioPreprocessor:
 
     def run_preprocessing_pipeline(self, input_dir: str) -> bool:
         """Execute complete preprocessing pipeline (PRE-01 to PRE-08)"""
+        print("\n" + "=" * 60)
+        print("Starting Audio Preprocessing Pipeline...")
+        print("=" * 60)
         logger.info("=" * 60)
         logger.info("Starting Audio Preprocessing Pipeline...")
         logger.info("=" * 60)
 
         input_path = Path(input_dir)
+        print(f"Input path: {input_path}")
+        print(f"Path exists: {input_path.exists()}")
         logger.info(f"Input path: {input_path}")
         logger.info(f"Path exists: {input_path.exists()}")
 
         try:
             # Step 1: Validate audio files (PRE-01, PRE-02)
+            print("STEP 1: Validating audio files...")
             logger.info("STEP 1: Validating audio files...")
             audio_files = self.validate_audio_files(input_path)
             if not audio_files:
+                print("ERROR: No valid audio files found after validation")
                 logger.error("No valid audio files found after validation")
                 return False
 
+            print(f"✓ Found {len(audio_files)} valid audio files")
             logger.info(f"✓ Found {len(audio_files)} valid audio files")
 
             # Step 2: Prepare output directories
+            print("STEP 2: Preparing output directories...")
             logger.info("STEP 2: Preparing output directories...")
             output_wavs_dir = self.config.DATA_DIR / "wavs"
             output_wavs_dir.mkdir(parents=True, exist_ok=True)
+            print(f"✓ Output directory: {output_wavs_dir}")
             logger.info(f"✓ Output directory: {output_wavs_dir}")
 
             # Step 3: Process each audio file
+            print("STEP 3: Processing each audio file...")
             logger.info("STEP 3: Processing each audio file...")
             all_segments = []
             for idx, audio_file in enumerate(audio_files):
+                print(f"\n[{idx + 1}/{len(audio_files)}] Processing {audio_file.name}...")
                 logger.info(f"\n[{idx + 1}/{len(audio_files)}] Processing {audio_file.name}...")
 
                 # Convert to WAV and resample (PRE-03)
                 wav_data, sr = self.load_and_preprocess_audio(audio_file)
                 if wav_data is None:
+                    print(f"Skipping {audio_file.name} (failed to load)")
                     logger.warning(f"Skipping {audio_file.name} (failed to load)")
                     continue
 
                 # Split into segments (PRE-04, PRE-05)
+                print(f"Segmenting audio...")
                 logger.info(f"Segmenting audio...")
                 segments = self.segment_and_denoise_audio(wav_data, sr)
                 if not segments:
+                    print(f"No valid segments from {audio_file.name}")
                     logger.warning(f"No valid segments from {audio_file.name}")
                     continue
 
+                print(f"Created {len(segments)} audio segments")
                 logger.info(f"Created {len(segments)} audio segments")
 
                 # Save segments
+                print(f"Saving segments...")
                 logger.info(f"Saving segments...")
                 for seg_idx, segment_data in enumerate(segments):
                     segment_file = output_wavs_dir / f"segment_{len(all_segments):05d}.wav"
                     sf.write(str(segment_file), segment_data, self.sample_rate)
                     all_segments.append(segment_file)
+                print(f"✓ Saved {len(segments)} segments for {audio_file.name}")
                 logger.info(f"✓ Saved {len(segments)} segments for {audio_file.name}")
 
             if not all_segments:
+                print("ERROR: No valid audio segments created after processing all files")
                 logger.error("No valid audio segments created after processing all files")
                 return False
 
+            print(f"\n✓ Created {len(all_segments)} total segments")
             logger.info(f"\n✓ Created {len(all_segments)} total segments")
 
             # Step 4: Generate file lists (PRE-06)
+            print("STEP 4: Generating file lists...")
             logger.info("STEP 4: Generating file lists...")
             self.generate_file_lists(all_segments)
 
             # Step 5: Extract features (PRE-07, PRE-08)
+            print("STEP 5: Extracting audio features...")
             logger.info("STEP 5: Extracting audio features...")
             if not self.extract_features(all_segments):
+                print("ERROR: Feature extraction failed")
                 logger.error("Feature extraction failed")
                 return False
 
+            print("\n" + "=" * 60)
+            print("✅ Audio preprocessing completed successfully!")
+            print(f"Total segments: {len(all_segments)}")
+            print("=" * 60)
             logger.info("\n" + "=" * 60)
             logger.info("✅ Audio preprocessing completed successfully!")
             logger.info(f"Total segments: {len(all_segments)}")
@@ -106,11 +133,16 @@ class AudioPreprocessor:
             return True
 
         except Exception as e:
+            print("=" * 60)
+            print(f"EXCEPTION in preprocessing pipeline: {type(e).__name__}")
+            print(f"Message: {str(e)}")
+            print("=" * 60)
+            import traceback
+            print(traceback.format_exc())
             logger.error("=" * 60)
             logger.error(f"EXCEPTION in preprocessing pipeline: {type(e).__name__}")
             logger.error(f"Message: {str(e)}")
             logger.error("=" * 60)
-            import traceback
             logger.error(traceback.format_exc())
             logger.error("=" * 60)
             return False
