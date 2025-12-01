@@ -1,0 +1,3 @@
+wavs\segment_00000.wav
+wavs\segment_00001.wav
+wavs\segment_00002.wav

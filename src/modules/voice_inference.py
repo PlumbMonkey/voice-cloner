@@ -8,8 +8,10 @@ from typing import Optional, List, Dict
 import numpy as np
 import soundfile as sf
 import librosa
+import torchaudio
 from src.utils.logger import logger
 from src.utils.error_handler import ModelInferenceError
+from src.modules.sovits_wrapper import create_sovits_wrapper
 
 
 class VoiceInference:
@@ -20,6 +22,19 @@ class VoiceInference:
         self.config = config
         self.model_path = model_path
         self.sample_rate = config.SAMPLE_RATE
+        self.sovits_wrapper = None
+        
+        # Try to initialize SO-VITS-SVC wrapper if model path provided
+        if model_path and Path(model_path).exists():
+            config_path = Path(model_path).parent.parent / "config.json"
+            if config_path.exists():
+                self.sovits_wrapper = create_sovits_wrapper(model_path, str(config_path))
+                if self.sovits_wrapper:
+                    logger.info("[OK] SO-VITS-SVC model loaded successfully")
+                else:
+                    logger.warning("[WARNING] SO-VITS-SVC model failed to load, will use simulation mode")
+            else:
+                logger.warning(f"[WARNING] Config not found at {config_path}, using simulation mode")
 
     def convert_voice(
         self,
@@ -51,12 +66,6 @@ class VoiceInference:
                 logger.error(f"Input audio not found: {input_audio}")
                 return False
 
-            # Check model - if not available, use simulation mode
-            model_available = self.model_path and Path(self.model_path).exists()
-            if not model_available:
-                logger.warning("Trained model not found - using voice conversion simulation mode")
-                logger.info("In production, this would use the actual SO-VITS-SVC model")
-
             logger.info(f"Input: {input_path.name}")
             logger.info(f"Output: {output_path.name}")
             logger.info(f"Pitch shift: {pitch_shift} semitones")
@@ -81,15 +90,41 @@ class VoiceInference:
 
             logger.info(f"[OK] Audio loaded ({len(y) / self.sample_rate:.2f}s)")
 
-            # Apply pitch shift
-            if pitch_shift != 0:
-                logger.info(f"Applying pitch shift: {pitch_shift} semitones...")
-                # Pitch shifting would be applied here
-                # For now, log the operation
-
-            # Convert voice (would use SO-VITS-SVC)
-            logger.info("Converting voice...")
-            converted_audio = y  # Placeholder - actual conversion happens via SO-VITS-SVC
+            # Use SO-VITS-SVC if available
+            if self.sovits_wrapper and self.sovits_wrapper.is_available():
+                logger.info("Using SO-VITS-SVC for voice conversion...")
+                try:
+                    # SO-VITS-SVC needs the audio file, not numpy array
+                    # So we need to save it temporarily first
+                    temp_audio_path = Path(output_audio).parent / "_temp_inference.wav"
+                    torchaudio.save(str(temp_audio_path), torchaudio.transforms.ToTensor()(y).unsqueeze(0), self.sample_rate)
+                    
+                    # Convert using SO-VITS-SVC
+                    converted_audio = self.sovits_wrapper.convert(
+                        str(temp_audio_path),
+                        speaker="0",
+                        transpose=pitch_shift,
+                        f0_method=f0_method,
+                        noise_scale=noise_scale
+                    )
+                    
+                    # Clean up temp file
+                    temp_audio_path.unlink()
+                    
+                    if converted_audio is not None:
+                        logger.info("[OK] SO-VITS-SVC conversion successful")
+                    else:
+                        logger.warning("[WARNING] SO-VITS-SVC returned None, using original audio")
+                        converted_audio = y
+                        
+                except Exception as e:
+                    logger.warning(f"[WARNING] SO-VITS-SVC conversion failed: {e}, using original audio")
+                    converted_audio = y
+            else:
+                # Use simulation mode
+                logger.warning("Trained model not found - using voice conversion simulation mode")
+                logger.info("In production, this would use the actual SO-VITS-SVC model")
+                converted_audio = y
 
             # Save output (INF-04)
             self.save_output_audio(converted_audio, output_path)
@@ -102,6 +137,8 @@ class VoiceInference:
 
         except Exception as e:
             logger.error(f"Voice conversion error: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def batch_convert(
