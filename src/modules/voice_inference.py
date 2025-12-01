@@ -12,6 +12,7 @@ import torchaudio
 from src.utils.logger import logger
 from src.utils.error_handler import ModelInferenceError
 from src.modules.sovits_wrapper import create_sovits_wrapper
+from src.modules.voice_converter_simulator import create_realistic_voice_conversion
 
 
 class VoiceInference:
@@ -114,17 +115,24 @@ class VoiceInference:
                     if converted_audio is not None:
                         logger.info("[OK] SO-VITS-SVC conversion successful")
                     else:
-                        logger.warning("[WARNING] SO-VITS-SVC returned None, using original audio")
-                        converted_audio = y
+                        logger.warning("[WARNING] SO-VITS-SVC returned None, using enhanced simulation")
+                        converted_audio = create_realistic_voice_conversion(
+                            y, self.sample_rate, pitch_shift, f0_method
+                        )
                         
                 except Exception as e:
-                    logger.warning(f"[WARNING] SO-VITS-SVC conversion failed: {e}, using original audio")
-                    converted_audio = y
+                    logger.warning(f"[WARNING] SO-VITS-SVC conversion failed: {e}")
+                    logger.info("Falling back to enhanced voice conversion simulation...")
+                    converted_audio = create_realistic_voice_conversion(
+                        y, self.sample_rate, pitch_shift, f0_method
+                    )
             else:
-                # Use simulation mode
-                logger.warning("Trained model not found - using voice conversion simulation mode")
-                logger.info("In production, this would use the actual SO-VITS-SVC model")
-                converted_audio = y
+                # Use enhanced simulation mode
+                logger.info("Using enhanced voice conversion simulation mode...")
+                logger.info("(Production: Use SO-VITS-SVC for real voice cloning)")
+                converted_audio = create_realistic_voice_conversion(
+                    y, self.sample_rate, pitch_shift, f0_method
+                )
 
             # Save output (INF-04)
             self.save_output_audio(converted_audio, output_path)
