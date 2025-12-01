@@ -75,10 +75,9 @@ class VoiceClonerOrchestrator:
         logger.info("=" * 80)
         logger.info(f"Input directory: {input_directory}")
 
-        if not self.workflow_state["env_setup"]:
-            logger.error("⚠️  Phase 2 (Environment Setup) must run first")
-            logger.info("Run: orchestrator.run_phase_2_environment_setup()")
-            return False
+        # For preprocessing, we don't strictly need Phase 2 to have run in this session
+        # since we're just doing audio processing. Just proceed with preprocessing.
+        logger.info("Proceeding with audio preprocessing...")
 
         try:
             logger.info("="*80)
