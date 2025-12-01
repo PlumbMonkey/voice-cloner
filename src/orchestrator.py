@@ -79,16 +79,25 @@ class VoiceClonerOrchestrator:
             logger.info("Run: orchestrator.run_phase_2_environment_setup()")
             return False
 
-        success = self.preprocessor.run_preprocessing_pipeline(input_directory)
-        self.workflow_state["audio_processed"] = success
+        try:
+            logger.info(f"Starting preprocessing pipeline for: {input_directory}")
+            success = self.preprocessor.run_preprocessing_pipeline(input_directory)
+            self.workflow_state["audio_processed"] = success
 
-        if success:
-            stats = self.preprocessor.get_preprocessing_stats()
-            logger.info(f"\n✓ Preprocessing Statistics:")
-            logger.info(f"  Segments: {stats.get('segments', 0)}")
-            logger.info(f"  Total Duration: {stats.get('total_duration', 0) / 60:.1f} minutes")
+            if success:
+                stats = self.preprocessor.get_preprocessing_stats()
+                logger.info(f"\n✓ Preprocessing Statistics:")
+                logger.info(f"  Segments: {stats.get('segments', 0)}")
+                logger.info(f"  Total Duration: {stats.get('total_duration', 0) / 60:.1f} minutes")
+            else:
+                logger.warning("Preprocessing pipeline returned False")
 
-        return success
+            return success
+        except Exception as e:
+            logger.error(f"Exception during preprocessing: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return False
 
     def run_phase_4_model_training(
         self,

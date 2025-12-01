@@ -127,8 +127,13 @@ class AudioPreprocessor:
                     continue
 
                 # Check duration
-                info = sf.info(str(audio_file))
-                duration = len(sf.read(str(audio_file))[0]) / info.samplerate
+                try:
+                    info = sf.info(str(audio_file))
+                    audio_data = sf.read(str(audio_file))[0]
+                    duration = len(audio_data) / info.samplerate
+                except Exception as e:
+                    logger.error(f"Failed to read {audio_file.name}: {e}")
+                    continue
                 
                 if duration < self.MIN_AUDIO_LENGTH:
                     logger.warning(f"Audio too short: {audio_file.name} ({duration:.2f}s < {self.MIN_AUDIO_LENGTH}s)")
@@ -155,6 +160,7 @@ class AudioPreprocessor:
             logger.warning(f"⚠ Total audio duration ({total_duration/60:.1f}m) below recommended (10m)")
             logger.warning("More audio data will improve model quality")
 
+        logger.info(f"Validation complete: {len(valid_files)} valid files out of {len(audio_files)}")
         return valid_files
 
     def load_and_preprocess_audio(self, audio_file: Path) -> Tuple[Optional[np.ndarray], int]:
@@ -163,13 +169,15 @@ class AudioPreprocessor:
             logger.info(f"Loading {audio_file.name}...")
 
             # Read audio
-            y, sr = librosa.load(str(audio_file), sr=None)
+            y, sr = librosa.load(str(audio_file), sr=None, mono=False)
+            logger.info(f"  Loaded: shape={y.shape}, sr={sr}")
 
             # Convert to mono if stereo
             if len(y.shape) > 1:
+                logger.info(f"  Converting from stereo to mono...")
                 y = librosa.to_mono(y)
-                logger.info("✓ Converted to mono")
-
+                logger.info(f"  Now mono: shape={y.shape}")
+            
             # Resample if necessary
             if sr != self.sample_rate:
                 logger.info(f"Resampling from {sr} Hz to {self.sample_rate} Hz...")
@@ -178,11 +186,13 @@ class AudioPreprocessor:
             # Normalize audio
             y = y / (np.max(np.abs(y)) + 1e-8)
 
-            logger.info(f"✓ Audio loaded ({len(y) / self.sample_rate:.2f}s)")
+            logger.info(f"✓ Audio loaded and preprocessed ({len(y) / self.sample_rate:.2f}s)")
             return y, self.sample_rate
 
         except Exception as e:
             logger.error(f"Error loading audio: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return None, None
 
     def segment_and_denoise_audio(self, audio_data: np.ndarray, sr: int) -> List[np.ndarray]:
@@ -190,8 +200,10 @@ class AudioPreprocessor:
         segments = []
 
         try:
+            logger.info(f"Total audio length: {len(audio_data) / sr:.2f}s at {sr} Hz")
+            
             # Detect and remove silence
-            logger.info("Removing silence...")
+            logger.info(f"Removing silence (top_db={25})...")
             intervals = librosa.effects.split(
                 audio_data,
                 top_db=25,  # Lowered from 40 to be less aggressive (captures more audio)
@@ -200,34 +212,54 @@ class AudioPreprocessor:
             )
 
             logger.info(f"Found {len(intervals)} non-silent intervals")
+            if len(intervals) == 0:
+                logger.warning("⚠️  No non-silent audio detected! Audio may be all silence.")
+                logger.warning("Try recording with higher volume or clearer audio")
+                return []
 
             # Create segments from non-silent intervals
             kept = 0
             skipped_too_short = 0
-            for start, end in intervals:
+            total_kept_duration = 0
+            
+            for idx, (start, end) in enumerate(intervals):
                 segment = audio_data[start:end]
                 duration = len(segment) / sr
+                
+                logger.debug(f"  Interval {idx+1}: {duration:.3f}s ({start}-{end} samples)")
 
                 # Filter by duration
                 if duration < self.config.MIN_DURATION:
-                    logger.debug(f"  Skipped segment: too short ({duration:.2f}s < {self.config.MIN_DURATION}s)")
+                    logger.debug(f"    → Skipped: too short ({duration:.3f}s < {self.config.MIN_DURATION}s)")
                     skipped_too_short += 1
                     continue
 
                 if duration > self.config.MAX_DURATION:
+                    logger.debug(f"    → Splitting: too long ({duration:.3f}s > {self.config.MAX_DURATION}s)")
                     # Split long segments
                     max_samples = int(self.config.MAX_DURATION * sr)
                     for i in range(0, len(segment), max_samples):
                         sub_segment = segment[i:i + max_samples]
-                        if len(sub_segment) / sr >= self.config.MIN_DURATION:
+                        sub_duration = len(sub_segment) / sr
+                        if sub_duration >= self.config.MIN_DURATION:
                             segments.append(sub_segment)
+                            total_kept_duration += sub_duration
                             kept += 1
                 else:
                     segments.append(segment)
+                    total_kept_duration += duration
                     kept += 1
-                    logger.debug(f"  Kept segment: {duration:.2f}s")
+                    logger.debug(f"    ✓ Kept: {duration:.3f}s")
 
-            logger.info(f"✓ Created {len(segments)} segments (kept: {kept}, skipped: {skipped_too_short})")
+            logger.info(f"Segmentation complete:")
+            logger.info(f"  Total kept: {kept} segments ({total_kept_duration:.2f}s)")
+            logger.info(f"  Total skipped: {skipped_too_short} segments")
+            
+            if len(segments) == 0:
+                logger.error("❌ No valid segments after filtering!")
+                logger.error(f"   MIN_DURATION: {self.config.MIN_DURATION}s")
+                logger.error(f"   MAX_DURATION: {self.config.MAX_DURATION}s")
+            
             return segments
 
         except Exception as e:
