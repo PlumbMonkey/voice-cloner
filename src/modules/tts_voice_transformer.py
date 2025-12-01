@@ -10,14 +10,14 @@ from pathlib import Path
 from edge_tts import Communicate
 
 
-async def text_to_speech_transformed(text, output_path, aggressiveness=2.0):
+async def text_to_speech_transformed(text, output_path, aggressiveness=1.0):
     """
     Convert text to speech using female voice, then transform to male voice.
     
     Args:
         text: Text to synthesize
         output_path: Output WAV file path
-        aggressiveness: How strong the gender transformation (2.0 = very strong)
+        aggressiveness: How strong the gender transformation (1.0 = normal, -3 semitones)
     """
     from src.modules.voice_transformer import GenderVoiceTransformer
     
@@ -55,7 +55,7 @@ async def text_to_speech_transformed(text, output_path, aggressiveness=2.0):
     return transformed, sr
 
 
-def sync_text_to_speech_transformed(text, output_path, aggressiveness=2.0):
+def sync_text_to_speech_transformed(text, output_path, aggressiveness=1.0):
     """Synchronous wrapper for text_to_speech_transformed."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)

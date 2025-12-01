@@ -23,23 +23,19 @@ class GenderVoiceTransformer:
     def transform_to_male(self, audio, aggressiveness=1.0):
         """
         Transform audio to sound more like a male voice.
+        Natural pitch shift without extreme effects.
         
         Args:
             audio: Input audio array
-            aggressiveness: How aggressive the transformation (1.0 = normal, 0.5 = subtle)
+            aggressiveness: Strength of transformation (1.0 = normal, 0.5 = subtle)
         
         Returns:
             Transformed audio array
         """
-        # Step 1: Lower the pitch slightly
-        pitch_shift_steps = int(-7 * aggressiveness)  # ~7 semitones
+        # Simple, natural pitch shift: -3 to -5 semitones
+        # This mimics natural male voice without "drunk" effect
+        pitch_shift_steps = int(-3 * aggressiveness)
         audio = librosa.effects.pitch_shift(audio, sr=self.sr, n_steps=pitch_shift_steps)
-        
-        # Step 2: Shift formants down (lower frequencies)
-        audio = self._shift_formants(audio, ratio=self.formant_shift_ratio * aggressiveness)
-        
-        # Step 3: Smooth transitions
-        audio = self._smooth_spectral_transitions(audio)
         
         return audio
     
