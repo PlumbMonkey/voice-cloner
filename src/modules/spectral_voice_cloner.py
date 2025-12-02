@@ -50,9 +50,15 @@ class SpectralVoiceCloner:
         
         return None
     
-    def clone_voice_spectral(self, source_path, your_samples, output_path):
+    def clone_voice_spectral(self, source_path, your_samples, output_path, morph_strength=0.5):
         """
         Clone voice using spectral matching
+        
+        Args:
+            source_path: Path to Katie's audio
+            your_samples: List of your voice samples
+            output_path: Where to save
+            morph_strength: 0.0 (no change) to 1.0 (maximum transfer) - default 0.5
         """
         
         # Load source audio (Katie)
@@ -139,9 +145,8 @@ class SpectralVoiceCloner:
         # Extract MFCC from pitch-shifted audio
         output_mfcc = librosa.feature.mfcc(y=output, sr=sr, n_mfcc=20)
         
-        # Create morphed MFCC (blend Katie's with your characteristics)
-        # Higher MFCC coefs affect timbre
-        morph_amount = 0.25  # How much to blend your voice in (subtle)
+        # Create morphed MFCC - blend more based on morph_strength
+        morph_amount = 0.15 + (morph_strength * 0.35)  # Range: 0.15 to 0.5
         morphed_mfcc = output_mfcc * (1 - morph_amount) + \
                        avg_profile['mfcc_mean'][:, np.newaxis] * morph_amount
         
@@ -156,28 +161,30 @@ class SpectralVoiceCloner:
         # Adjust magnitude based on spectral characteristics
         # But DO NOT shift frequencies - just rebalance magnitudes
         cent_ratio = avg_profile['centroid'] / (katie_cent + 1e-7)
-        cent_ratio = np.clip(cent_ratio, 0.85, 1.15)
+        cent_ratio = np.clip(cent_ratio, 0.80, 1.25)
         
-        # Apply subtle spectral scaling (don't shift, just compress/expand energy)
+        # Apply spectral scaling (don't shift, just compress/expand energy)
         # Lower frequencies should be relatively stronger if your voice is lower freq
         freq_bins = np.fft.rfftfreq(self.n_fft, 1/sr)
         
-        # Create frequency-dependent scaling
+        # Create frequency-dependent scaling based on morph strength
         scaling = np.ones(mag.shape[0])
         mid_freq = sr / 2
         
         # If your voice centroid is lower, boost lower frequencies
         if cent_ratio < 1.0:  # Your voice is lower frequency
             # Boost lows, slightly reduce highs
-            scaling = 1.0 + 0.2 * np.exp(-(freq_bins / (mid_freq * 0.5))**2)
+            boost_amount = 0.15 + (morph_strength * 0.25)  # More boost with stronger morph
+            scaling = 1.0 + boost_amount * np.exp(-(freq_bins / (mid_freq * 0.5))**2)
         else:  # Your voice is higher frequency
             # Boost highs, slightly reduce lows
-            scaling = 1.0 + 0.15 * np.exp(-((mid_freq - freq_bins) / (mid_freq * 0.5))**2)
+            boost_amount = 0.1 + (morph_strength * 0.2)
+            scaling = 1.0 + boost_amount * np.exp(-((mid_freq - freq_bins) / (mid_freq * 0.5))**2)
         
-        scaling = np.clip(scaling, 0.85, 1.15)
+        scaling = np.clip(scaling, 0.75, 1.35)
         mag_adjusted = mag * scaling[:, np.newaxis]
         
-        print(f"  Spectral adjustment: {cent_ratio:.2f}x (centroid focus)")
+        print(f"  Spectral adjustment: {cent_ratio:.2f}x (morph strength: {morph_amount:.2f})")
         
         # Reconstruct
         S_new = mag_adjusted * np.exp(1j * phase)
@@ -229,11 +236,32 @@ def main():
         return
     
     cloner = SpectralVoiceCloner(sr=44100)
-    cloner.clone_voice_spectral(
-        str(katie_path),
-        [str(p) for p in sorted(your_samples)],
-        "output/katie_spectral_clone.wav"
-    )
+    
+    # Generate multiple versions with different morph strengths
+    strengths = [
+        (0.3, "light"),
+        (0.5, "medium"),
+        (0.7, "strong")
+    ]
+    
+    print("\nGenerating multiple voice clone versions...")
+    print()
+    
+    for strength, label in strengths:
+        output_path = f"output/katie_{label}_clone.wav"
+        print(f"[{label.upper()}] Morph strength: {strength}")
+        
+        cloner.clone_voice_spectral(
+            str(katie_path),
+            [str(p) for p in sorted(your_samples)],
+            output_path,
+            morph_strength=strength
+        )
+        print()
+
+
+if __name__ == "__main__":
+    main()
 
 
 if __name__ == "__main__":
