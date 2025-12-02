@@ -1,8 +1,0 @@
-data/wavs/segment_00038.wav
-data/wavs/segment_00039.wav
-data/wavs/segment_00040.wav
-data/wavs/segment_00041.wav
-data/wavs/segment_00042.wav
-data/wavs/segment_00043.wav
-data/wavs/segment_00044.wav
-data/wavs/segment_00046.wav
