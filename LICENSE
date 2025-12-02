@@ -1,0 +1,48 @@
+MIT License
+
+Copyright (c) 2025 Voice Cloner Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+DEPENDENCY LICENSES:
+
+This project uses the following open-source libraries:
+
+1. so-vits-svc-fork (AGPL-3.0)
+   - Voice conversion model
+   - GitHub: https://github.com/voicepaw/so-vits-svc-fork
+   - License: GNU Affero General Public License v3.0
+   - Note: We use this as a backend; modifications to Voice Cloner wrapper code
+     are released under MIT license
+
+2. librosa (ISC License)
+   - Audio processing
+   - License: https://github.com/librosa/librosa/blob/main/LICENSE
+
+3. PyTorch (BSD)
+   - Deep learning framework
+   - License: https://github.com/pytorch/pytorch/blob/master/LICENSE
+
+4. soundfile (BSD)
+   - Audio I/O
+   - License: https://github.com/bastibe/python-soundfile/blob/master/LICENSE
+
+See requirements.txt for full dependency list and their licenses.

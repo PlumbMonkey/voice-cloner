@@ -66,10 +66,25 @@ def main():
     )
     
     parser.add_argument(
-        "--feature-ratio", "-f",
+        "--speaker-id", "-s",
+        type=int,
+        default=0,
+        help="Speaker ID (default: 0)"
+    )
+    
+    parser.add_argument(
+        "--f0-method",
+        type=str,
+        choices=["crepe", "parselmouth", "dio", "harvest"],
+        default="crepe",
+        help="F0 extraction method (default: crepe)"
+    )
+    
+    parser.add_argument(
+        "--index-rate", "-i",
         type=float,
-        default=0.75,
-        help="Voice feature blend ratio 0-1 (default: 0.75)"
+        default=0.5,
+        help="Index rate for retrieval (0-1, default: 0.5)"
     )
     
     parser.add_argument(
@@ -139,14 +154,17 @@ def main():
     # Convert
     print(f"{Fore.CYAN}Converting: {input_path.name}{Style.RESET_ALL}")
     print(f"  Pitch shift: {args.pitch_shift} semitones")
-    print(f"  Feature ratio: {args.feature_ratio}")
+    print(f"  F0 method: {args.f0_method}")
+    print(f"  Index rate: {args.index_rate}")
     
     try:
         converter.convert(
             source_audio=input_path,
             output_path=output_path,
+            speaker_id=args.speaker_id,
             pitch_shift=args.pitch_shift,
-            feature_ratio=args.feature_ratio
+            f0_method=args.f0_method,
+            index_rate=args.index_rate
         )
         
         print(f"\n{Fore.GREEN}✓ Conversion complete!{Style.RESET_ALL}")
