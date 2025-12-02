@@ -1,175 +1,169 @@
 # Voice Cloner - Quick Start Guide
 
+## What You Need to Know
+
+Voice Cloner converts any audio to sound like YOUR voice using AI. It has two main steps:
+
+1. **Train** - Teach the AI your voice (30 mins - 2 hours, one time)
+2. **Convert** - Use your trained voice to convert other audio (fast, unlimited)
+
+---
+
 ## Installation
 
 ### Prerequisites
 - Python 3.10+
-- NVIDIA GPU with CUDA (recommended for speed, optional)
-- ~8GB free disk space for models
+- NVIDIA GPU (recommended but optional)
+- 10-30 minutes of your voice recordings
 
-### Setup (Windows)
+### Setup
 
 ```bash
-# 1. Clone the repository
+# Clone and setup
 git clone https://github.com/PlumbMonkey/voice-cloner.git
 cd voice-cloner
 
-# 2. Create virtual environment
+# Create virtual environment
 python -m venv .venv
-.venv\Scripts\activate
+.venv\Scripts\activate   # Windows
+# source .venv/bin/activate  # macOS/Linux
 
-# 3. Install dependencies
-pip install -r requirements.txt
-
-# If you want GPU acceleration (NVIDIA):
-pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu118
-```
-
-### Setup (macOS/Linux)
-
-```bash
-git clone https://github.com/PlumbMonkey/voice-cloner.git
-cd voice-cloner
-
-python -m venv .venv
-source .venv/bin/activate
-
+# Install dependencies
 pip install -r requirements.txt
 ```
 
 ---
 
-## Step 1: Prepare Your Voice Samples
+## Step 1: Prepare Your Voice
 
-1. **Collect your voice recordings**
-   - Record clear samples of YOUR voice
+1. **Collect voice samples** - Record 10-30 minutes of YOUR voice
+   - Clear speech or singing
+   - Minimal background noise
    - Format: WAV or MP3
-   - Duration: 10-30 minutes total (minimum)
-   - Quality: Minimal background noise, clear speech
 
-2. **Place samples in `samples/` folder**
+2. **Place in `samples/` folder**
    ```
-   samples/
-   ├── sample1.wav
-   ├── sample2.wav
-   ├── sample3.wav
-   └── sample4.wav
+   voice-cloner/
+   └── samples/
+       ├── recording1.wav
+       ├── recording2.wav
+       ├── recording3.wav
+       └── recording4.wav
    ```
 
-3. **Important: Verify it's YOUR voice**
+3. **Verify quality**
    - Listen to each file
-   - Make sure all samples are consistent (same person)
-   - Remove any files with background noise or multiple speakers
+   - Make sure it's all YOUR voice
+   - No other speakers or heavy background noise
+
+✅ **Your samples are ready!** Run:
+```bash
+python train.py
+```
 
 ---
 
 ## Step 2: Train Your Voice Model
 
+### Option A: Use WebUI (Easiest) ⭐ RECOMMENDED
+
+1. **Download WebUI**
+   - GitHub: https://github.com/voicepaw/so-vits-svc-fork/releases
+   - Windows: Download `so-vits-svc-fork-webui.exe`
+   - Or use command line (see Option B)
+
+2. **Use WebUI to Train**
+   - Open the WebUI
+   - Point to your `samples/` folder
+   - Click "Preprocess" then "Train"
+   - Wait 30 mins - 2 hours
+   - Model saves to `checkpoints/`
+
+### Option B: Use Command Line
+
 ```bash
-python train.py
+# Preprocess your voice
+svc pre-resample --sr 44100 --in-dir samples
+
+# Extract voice features
+svc pre-hubert --in-dir samples/44k
+
+# Train the model
+svc train --config configs/config.json
 ```
 
-This will:
-1. Resample your voice samples to 44.1kHz
-2. Extract HuBERT voice features
-3. Train the model (takes 30 mins - 2 hours depending on GPU)
-4. Save the model to `checkpoints/`
-
-**First time?** It will download pre-trained models (~500MB).
+⏱️ **Training time:** 30 mins - 2 hours (depending on GPU)
 
 ---
 
 ## Step 3: Convert Audio to Your Voice
 
-```bash
-# Simple conversion
-python convert.py input/vocals.wav
+Once training is complete:
 
-# With custom settings
+```bash
+# Place vocal stem in input/
+# Then run conversion:
+python convert.py input/vocal_stem.wav
+
+# Output appears in output/ folder
+```
+
+### Adjust Quality
+
+```bash
 python convert.py input/vocals.wav \
-  --output output/my_version.wav \
-  --pitch-shift 0 \
-  --index-rate 0.5
-
-# List available models
-python convert.py --list-models
+  --pitch-shift 0          # Adjust pitch if needed
+  --index-rate 0.5         # Voice blend strength (0.3-0.7 recommended)
+  --f0-method crepe        # Method: crepe, parselmouth, dio
+  --output output/my_voice.wav
 ```
-
-### Output
-Converted audio will appear in `output/` folder.
-
----
-
-## Advanced Usage
-
-### Parameters
-
-```bash
-python convert.py input/file.wav \
-  --speaker-id 0              # Which speaker to use (if multiple)
-  --pitch-shift 0             # Shift pitch in semitones (-12 to +12)
-  --f0-method crepe           # F0 extraction: crepe, parselmouth, dio, harvest
-  --index-rate 0.5            # Feature retrieval strength (0.0-1.0)
-  --output output/custom.wav  # Output filename
-```
-
-### F0 Methods
-- **crepe**: Most accurate, but slower (default)
-- **parselmouth**: Fast, good quality
-- **dio/harvest**: Very fast, lower quality
-
-### Pitch Shift
-- Negative values: Lower pitch (male voice)
-- Positive values: Higher pitch (female voice)
-- Example: `-5` semitones = lower by half a step
 
 ---
 
 ## FL Studio Workflow
 
-1. **Export vocal stem** as WAV (16-bit, 44.1kHz)
-2. **Place in `input/` folder**
-3. **Run conversion**: `python convert.py input/vocal_stem.wav`
-4. **Import result** back into FL Studio
-5. **Blend with other stems** to create final mix
+1. **Break down your song into stems** in FL Studio
+2. **Export vocal stem** as WAV (16-bit, 44.1kHz)
+3. **Place in `input/` folder**
+4. **Run conversion**
+   ```bash
+   python convert.py "input/My Song - Vocals.wav"
+   ```
+5. **Import converted vocals** back into FL Studio
+6. **Mix with other stems**
 
 ---
 
 ## Troubleshooting
 
 ### "Model not found"
-- Train a model first: `python train.py`
-- Or download a pre-trained model
+→ Train your model first using `python train.py` and follow Option A or B
 
 ### "CUDA out of memory"
-- Reduce GPU usage: Use `--index-rate 0.3` for faster processing
-- Or use CPU: Models are slower but work
+→ Use `--index-rate 0.3` for faster processing
+→ Or train on CPU (slower but works)
 
 ### "Conversion sounds wrong"
-- Check your voice samples are good quality
-- Retrain with more/better data
-- Adjust `--index-rate` (try 0.3 to 0.7)
+→ Your training samples might not be good quality
+→ Retrain with more/better voice recordings
+→ Adjust `--index-rate` (try 0.3, 0.5, 0.7)
 
-### Poor audio quality
-- Use high-quality input (WAV, 44.1kHz+)
-- Train with more voice samples
-- Adjust pitch shift if needed
+### "Audio quality is bad"
+→ Use high-quality input audio (WAV, 44.1kHz+)
+→ Train with more voice samples (20-30 minutes)
+→ Tune pitch with `--pitch-shift`
 
 ---
 
-## System Requirements
+## Performance
 
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| Python | 3.10 | 3.11+ |
-| RAM | 8GB | 16GB |
-| Disk | 5GB | 20GB |
-| GPU | Optional | NVIDIA RTX 3060+ |
+| Task | Time (RTX 3070) | Time (CPU) |
+|------|---|---|
+| Train | 30 mins - 2 hours | 5-10 hours |
+| Convert 10s | ~2 seconds | ~20 seconds |
+| Convert 1m | ~20 seconds | ~3 minutes |
 
-**Inference times** (on RTX 3070):
-- 10 second audio: ~2-5 seconds
-- 1 minute audio: ~30-60 seconds
-- CPU: ~5-10x slower
+**Faster?** Use a better GPU (RTX 4070, A100, etc.)
 
 ---
 
@@ -177,41 +171,104 @@ python convert.py input/file.wav \
 
 ```
 voice-cloner/
-├── samples/          # Put your voice recordings here
-├── input/            # Audio files to convert
-├── output/           # Converted audio
-├── models/           # Pre-trained models
-├── checkpoints/      # Your trained model
+├── samples/          # Your voice recordings (10-30 mins)
+├── input/            # Audio to convert (vocals, stems)
+├── output/           # Converted audio (automatic)
+├── checkpoints/      # Your trained model (after training)
+├── models/           # Pre-trained models (optional)
 ├── src/
 │   ├── core/         # Voice conversion engine
 │   └── utils/        # Audio utilities
-├── convert.py        # Convert audio
-├── train.py          # Train a model
+├── convert.py        # Main conversion tool
+├── train.py          # Training setup guide
+├── requirements.txt  # Dependencies
 └── README.md         # Full documentation
 ```
 
 ---
 
+## System Requirements
+
+| | Minimum | Recommended |
+|---|---|---|
+| **OS** | Windows/Mac/Linux | Windows 10+ |
+| **Python** | 3.10 | 3.11+ |
+| **RAM** | 8 GB | 16 GB |
+| **Disk** | 10 GB | 30 GB |
+| **GPU** | Optional | NVIDIA RTX 3060+ |
+
+**GPU Acceleration:** ~5-10x faster with NVIDIA GPU
+
+---
+
+## Advanced Parameters
+
+```bash
+python convert.py input/vocals.wav \
+  --speaker-id 0              # Speaker ID (if multiple in model)
+  --pitch-shift -2            # Lower pitch (-12 to +12 semitones)
+  --f0-method crepe           # F0 extraction method
+  --index-rate 0.7            # Feature retrieval strength (0.0-1.0)
+  --output output/custom.wav  # Custom output path
+```
+
+### F0 Methods Explained
+- **crepe** - Most accurate (slower, ~3-5s per 10s)
+- **parselmouth** - Faster, good quality (fastest)
+- **dio/harvest** - Very fast, lower quality
+
+### Pitch Shift Tips
+- Negative = lower pitch (sounds more male)
+- Positive = higher pitch (sounds more female)
+- Example: `-5` = half step lower, `+7` = half step higher
+
+---
+
+## Command Cheat Sheet
+
+```bash
+# Setup
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+
+# Prepare
+python train.py
+
+# Convert
+python convert.py input/vocals.wav
+
+# Advanced conversion
+python convert.py input/vocals.wav --pitch-shift 2 --index-rate 0.6
+
+# List models
+python convert.py --list-models
+```
+
+---
+
+## Licensing & Attribution
+
+This project uses **open-source components**:
+- **so-vits-svc-fork** - Voice conversion (AGPL-3.0)
+- **Voice Cloner wrapper** - MIT License
+
+See LICENSE file for details.
+
+---
+
 ## Next Steps
 
-- **Improve quality**: Collect more voice samples (20-30 min)
-- **Fine-tune**: Experiment with `--index-rate` and `--pitch-shift`
-- **Automate**: Create batch conversion scripts
-- **Share**: Contribute improvements back to the community!
+1. ✅ Install dependencies
+2. ✅ Prepare your voice samples
+3. ⏳ Train your model (30 mins - 2 hours)
+4. 🎵 Convert your first audio
+5. 🚀 Share your results!
+
+**Having issues?** Check troubleshooting section above.
+
+**Want to contribute?** Visit: https://github.com/PlumbMonkey/voice-cloner
 
 ---
 
-## Community & Support
-
-- **GitHub**: https://github.com/PlumbMonkey/voice-cloner
-- **Issues**: Report bugs and feature requests
-- **Discussions**: Ask questions and share tips
-- **License**: MIT (see LICENSE file)
-
----
-
-## Credits
-
-Built with [so-vits-svc-fork](https://github.com/voicepaw/so-vits-svc-fork) - a community fork of the Singing Voice Conversion project.
-
-Happy cloning! 🎵
+**Happy cloning! 🎤**

@@ -6,18 +6,13 @@ This script uses so-vits-svc-fork to train a model that can convert other voices
 
 Usage:
     python train.py
-    
-The script will:
-1. Preprocess your voice samples from samples/
-2. Extract features (HuBERT embeddings)
-3. Train the model
-4. Save the trained model to models/
 """
 
 import os
 import sys
-import subprocess
 import logging
+import shutil
+import json
 from pathlib import Path
 from colorama import init, Fore, Style
 
@@ -46,21 +41,24 @@ def check_samples():
     if not samples_dir.exists():
         logger.error(f"{Fore.RED}Samples directory not found!{Style.RESET_ALL}")
         logger.info("Create a 'samples/' folder and add your voice recordings (.wav files)")
-        return False
+        return []
     
     audio_files = list(samples_dir.glob("*.wav")) + list(samples_dir.glob("*.mp3"))
     
     if not audio_files:
         logger.error(f"{Fore.RED}No audio files found in samples/{Style.RESET_ALL}")
         logger.info("Add your voice recordings (.wav or .mp3) to the samples/ folder")
-        return False
+        return []
     
-    total_duration = 0
     logger.info(f"{Fore.GREEN}Found {len(audio_files)} audio files:{Style.RESET_ALL}")
     
+    total_mb = 0
     for f in audio_files:
         size_mb = f.stat().st_size / (1024 * 1024)
+        total_mb += size_mb
         logger.info(f"  - {f.name} ({size_mb:.1f}MB)")
+    
+    logger.info(f"\n  Total: {total_mb:.1f}MB")
     
     # Recommend minimum duration
     logger.info(f"\n{Fore.CYAN}Recommendations:{Style.RESET_ALL}")
@@ -69,80 +67,126 @@ def check_samples():
     logger.info("  - Sample rate: 16-48 kHz")
     logger.info("  - Quality: Clear, minimal background noise")
     
-    return True
+    return audio_files
 
 
-def run_command(cmd, description):
-    """Run a command and handle errors."""
-    logger.info(f"\n{Fore.YELLOW}► {description}{Style.RESET_ALL}")
-    logger.info(f"  Command: {' '.join(cmd)}")
+def setup_training_environment():
+    """Set up the training environment."""
+    logger.info(f"\n{Fore.CYAN}Setting up training environment...{Style.RESET_ALL}")
     
-    try:
-        result = subprocess.run(cmd, check=True, capture_output=False, text=True)
-        logger.info(f"  {Fore.GREEN}✓ Complete{Style.RESET_ALL}")
-        return True
-    except subprocess.CalledProcessError as e:
-        logger.error(f"  {Fore.RED}✗ Failed{Style.RESET_ALL}")
-        logger.error(f"  Error: {e}")
-        return False
-    except FileNotFoundError:
-        logger.error(f"  {Fore.RED}✗ Command not found{Style.RESET_ALL}")
-        return False
+    # Create necessary directories
+    dirs = ["checkpoints", "logs", "samples/44k"]
+    for d in dirs:
+        Path(d).mkdir(parents=True, exist_ok=True)
+        logger.info(f"  ✓ Created {d}/")
+    
+    # Create default config if it doesn't exist
+    config_path = Path("configs/config.json")
+    if not config_path.exists():
+        config_path.parent.mkdir(exist_ok=True)
+        config = {
+            "train": {
+                "batch_size": 16,
+                "epochs": 100,
+                "learning_rate": 0.0001,
+                "log_interval": 10,
+                "save_interval": 100,
+            },
+            "data": {
+                "n_fft": 2048,
+                "n_mels": 80,
+                "sampling_rate": 44100,
+                "hop_size": 512,
+                "win_size": 2048,
+                "f_min": 40,
+                "f_max": 7600,
+                "f0_min": 50,
+                "f0_max": 1100,
+                "use_nsf": True,
+            }
+        }
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=2)
+        logger.info(f"  ✓ Created {config_path}")
+    
+    return config_path
 
 
-def train_model():
-    """Train the voice model."""
+def train_with_webui():
+    """Guide user to train with WebUI."""
+    logger.info(f"\n{Fore.YELLOW}{'='*50}{Style.RESET_ALL}")
+    logger.info(f"{Fore.CYAN}TRAINING METHOD: WebUI (Recommended){Style.RESET_ALL}")
+    logger.info(f"{Fore.YELLOW}{'='*50}{Style.RESET_ALL}\n")
+    
+    logger.info("The easiest way to train is using the so-vits-svc WebUI.")
+    logger.info("It provides a visual interface for preprocessing and training.\n")
+    
+    logger.info(f"{Fore.GREEN}Step 1: Download the WebUI{Style.RESET_ALL}")
+    logger.info("  Visit: https://github.com/voicepaw/so-vits-svc-fork/releases")
+    logger.info("  Download: 'so-vits-svc-fork-webui.exe' (Windows)")
+    logger.info("  Or use Python:\n")
+    
+    logger.info(f"{Fore.CYAN}  python -m so_vits_svc_fork.inference.main --help{Style.RESET_ALL}\n")
+    
+    logger.info(f"{Fore.GREEN}Step 2: Alternatively, use our simple conversion (no training needed yet){Style.RESET_ALL}")
+    logger.info("  If you have a pre-trained model in models/:")
+    logger.info(f"\n{Fore.CYAN}  python convert.py input/vocals.wav{Style.RESET_ALL}\n")
+    
+    logger.info(f"{Fore.YELLOW}For now, we'll use a workaround approach:{Style.RESET_ALL}\n")
+
+
+def show_alternative_methods():
+    """Show alternative ways to train/convert."""
+    logger.info(f"\n{Fore.CYAN}{'='*50}{Style.RESET_ALL}")
+    logger.info(f"{Fore.YELLOW}ALTERNATIVE: Try conversion without training{Style.RESET_ALL}")
+    logger.info(f"{Fore.CYAN}{'='*50}{Style.RESET_ALL}\n")
+    
+    logger.info("Since training setup requires the full so-vits-svc CLI,")
+    logger.info("here's what we recommend:\n")
+    
+    logger.info(f"{Fore.GREEN}Option 1: Use Pre-trained Models{Style.RESET_ALL}")
+    logger.info("  - Visit: https://huggingface.co/search?q=so-vits-svc")
+    logger.info("  - Download a pre-trained model")
+    logger.info("  - Place in: models/")
+    logger.info("  - Run: python convert.py input/vocals.wav\n")
+    
+    logger.info(f"{Fore.GREEN}Option 2: Train with WebUI (Recommended){Style.RESET_ALL}")
+    logger.info("  - WebUI is easier and more reliable")
+    logger.info("  - Download: https://github.com/voicepaw/so-vits-svc-fork")
+    logger.info("  - Follow README instructions\n")
+    
+    logger.info(f"{Fore.GREEN}Option 3: Use Command Line (Advanced){Style.RESET_ALL}")
+    logger.info("  - Clone: git clone https://github.com/voicepaw/so-vits-svc-fork.git")
+    logger.info("  - Follow training steps in their README\n")
+    
+    logger.info(f"{Fore.YELLOW}Next Steps:{Style.RESET_ALL}")
+    logger.info("  1. Prepare your samples (already done ✓)")
+    logger.info("  2. Train a model using one of the methods above")
+    logger.info("  3. Run: python convert.py input/vocals.wav")
+    logger.info("  4. Check output/ folder for results\n")
+
+
+def main():
+    """Main training setup."""
     print_header()
     
     # Check samples
-    if not check_samples():
+    audio_files = check_samples()
+    if not audio_files:
         return
     
-    input("Press Enter to start training...")
+    # Setup environment
+    setup_training_environment()
     
-    logger.info(f"\n{Fore.CYAN}Starting training pipeline...{Style.RESET_ALL}\n")
+    # Show alternatives
+    train_with_webui()
+    show_alternative_methods()
     
-    # Create models directory
-    Path("models").mkdir(exist_ok=True)
-    Path("checkpoints").mkdir(exist_ok=True)
+    logger.info(f"{Fore.GREEN}Your voice samples are ready!{Style.RESET_ALL}")
+    logger.info(f"Total files: {len(audio_files)}\n")
     
-    steps = [
-        # Step 1: Resample audio
-        (
-            ["svc", "pre-resample", "--sr", "44100", "--in-dir", "samples"],
-            "Resampling audio to 44.1kHz"
-        ),
-        
-        # Step 2: Extract HuBERT features
-        (
-            ["svc", "pre-hubert", "--in-dir", "samples/44k"],
-            "Extracting voice features (HuBERT)"
-        ),
-        
-        # Step 3: Run training
-        (
-            ["svc", "train", "--config", "configs/config.json"],
-            "Training voice model (this may take a while...)"
-        ),
-    ]
-    
-    success = True
-    for i, (cmd, desc) in enumerate(steps, 1):
-        logger.info(f"\n{Fore.CYAN}Step {i}/{len(steps)}{Style.RESET_ALL}")
-        if not run_command(cmd, desc):
-            success = False
-            break
-    
-    if success:
-        logger.info(f"\n{Fore.GREEN}╔════════════════════════════════════════╗")
-        logger.info(f"║         {Fore.WHITE}Training Complete!{Fore.GREEN}            ║")
-        logger.info(f"║  Your model is ready in: checkpoints/{Fore.WHITE}  ║{Fore.GREEN}")
-        logger.info(f"╚════════════════════════════════════════╝{Style.RESET_ALL}\n")
-    else:
-        logger.error(f"\n{Fore.RED}Training failed. Check the errors above.{Style.RESET_ALL}")
-        logger.info("\nAlternative: Use the so-vits-svc WebUI:")
-        logger.info("  python -m so_vits_svc_fork.webui.new_ui")
+    logger.info(f"{Fore.CYAN}Next: Train your model and come back to convert audio.{Style.RESET_ALL}")
 
 
 if __name__ == "__main__":
-    train_model()
+    main()
